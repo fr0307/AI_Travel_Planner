@@ -1,0 +1,104 @@
+# 依赖目录
+node_modules/
+npm-cache/
+*/node_modules/
+
+# 环境变量文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 日志文件
+*.log
+logs/
+*.log.*
+
+# 运行时文件
+*.pid
+*.seed
+*.pid.lock
+
+# 缓存目录
+.npm
+.eslintcache
+
+# 构建输出目录
+dist/
+build/
+*/dist/
+*/build/
+
+# IDE和编辑器文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 调试文件
+*.pdb
+
+# 覆盖率报告
+coverage/
+.nyc_output/
+
+# 依赖锁定文件（可选，根据团队规范决定是否忽略）
+# package-lock.json
+# yarn.lock
+
+# 临时文件
+.tmp/
+temp/
+
+# Docker相关
+.docker/
+
+# 测试相关
+*.test.js
+*.spec.js
+
+# TypeScript编译输出
+*.tsbuildinfo
+
+# 缓存文件
+.cache/
+.parcel-cache/
+
+# 包管理器特定文件
+.yarn/
+.pnp.*
+
+# 开发服务器相关
+.history/
+
+# 数据库文件
+*.db
+*.sqlite
+
+# 上传文件目录
+uploads/
+*/uploads/
+
+# 证书文件
+*.pem
+*.crt
+*.key
+
+# 备份文件
+*.bak
+*.backup
+
+# 压缩文件
+*.zip
+*.tar.gz
+*.rar
+
+# 配置文件备份
+*.config.js.bak
+*.json.bak

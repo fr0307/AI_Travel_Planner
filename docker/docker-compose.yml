@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # 前端应用
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - ai-travel-network
+
+  # 后端API服务
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - FRONTEND_URL=http://localhost:3000
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - ../backend:/app
+      - /app/node_modules
+    networks:
+      - ai-travel-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 本地开发数据库（可选，如果不想使用Supabase）
+  # postgres:
+  #   image: postgres:15
+  #   environment:
+  #     POSTGRES_DB: ai_travel_planner
+  #     POSTGRES_USER: admin
+  #     POSTGRES_PASSWORD: password
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ../docs/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+  #   networks:
+  #     - ai-travel-network
+
+networks:
+  ai-travel-network:
+    driver: bridge
+
+# volumes:
+#   postgres_data:
