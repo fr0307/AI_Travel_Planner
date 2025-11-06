@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js'
 import jwt from 'jsonwebtoken'
 import { createLogger } from '../middleware/logger.js'
 import { ValidationError, UnauthorizedError, NotFoundError } from '../middleware/errorHandler.js'
+import dotenv from 'dotenv'
+
+// 在路由文件中直接加载环境变量
+dotenv.config()
 
 const router = express.Router()
 const logger = createLogger('TripRoutes')

@@ -3,12 +3,17 @@ import { createClient } from '@supabase/supabase-js'
 import jwt from 'jsonwebtoken'
 import { createLogger } from '../middleware/logger.js'
 import { ValidationError, UnauthorizedError, AppError } from '../middleware/errorHandler.js'
+import dotenv from 'dotenv'
+
+// 在路由文件中直接加载环境变量
+dotenv.config()
 
 const router = express.Router()
 const logger = createLogger('AuthRoutes')
 
 // 初始化Supabase客户端（如果配置了环境变量）
 let supabase = null
+
 if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
   supabase = createClient(
     process.env.SUPABASE_URL,

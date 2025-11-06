@@ -5,6 +5,9 @@ import compression from 'compression'
 import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
 
+// 首先加载环境变量
+dotenv.config()
+
 // 导入路由
 import authRoutes from './routes/auth.js'
 import tripRoutes from './routes/trips.js'
@@ -13,9 +16,6 @@ import aiRoutes from './routes/ai.js'
 // 导入中间件
 import { errorHandler } from './middleware/errorHandler.js'
 import { loggerMiddleware } from './middleware/logger.js'
-
-// 加载环境变量
-dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
