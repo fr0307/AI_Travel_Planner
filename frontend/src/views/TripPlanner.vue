@@ -167,6 +167,8 @@
                 <div class="bg-green-50 dark:bg-green-900 p-4 rounded-md">
                   <h4 class="font-medium text-green-800 dark:text-green-200">{{ planResult.title }}</h4>
                   <p class="text-sm text-green-600 dark:text-green-300 mt-1">{{ planResult.summary }}</p>
+                  <p v-if="planResult.budget" class="text-sm text-green-600 dark:text-green-300 mt-1">预算: {{ planResult.budget }}元</p>
+                  <p class="text-sm text-green-600 dark:text-green-300 mt-1">行程天数: {{ planResult.duration_days }}天</p>
                 </div>
                 
                 <div class="space-y-3">
@@ -176,6 +178,16 @@
                       <div>上午：{{ day.morning.join('、') }}</div>
                       <div>下午：{{ day.afternoon.join('、') }}</div>
                       <div>晚上：{{ day.evening.join('、') }}</div>
+                    </div>
+                    <p v-if="day.notes" class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ day.notes }}</p>
+                  </div>
+                </div>
+
+                <div v-if="planResult.recommendations && planResult.recommendations.length > 0" class="bg-blue-50 dark:bg-blue-900 p-4 rounded-md">
+                  <h4 class="font-medium text-blue-800 dark:text-blue-200 mb-2">推荐景点</h4>
+                  <div class="space-y-2">
+                    <div v-for="rec in planResult.recommendations" :key="rec.name" class="text-sm text-blue-700 dark:text-blue-300">
+                      <strong>{{ rec.name }}</strong> ({{ rec.type }}) - 评分: {{ rec.rating }}/5 - 价格: {{ rec.price }}元
                     </div>
                   </div>
                 </div>
@@ -205,11 +217,12 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import NavigationBar from '@/components/NavigationBar.vue'
+import { aiService, type AITripPlanRequest, type TripPlan } from '@/services/ai'
 
 const loading = ref(false)
 const isRecording = ref(false)
 const voiceText = ref('')
-const planResult = ref<any>(null)
+const planResult = ref<TripPlan | null>(null)
 
 const interests = [
   { value: 'history', label: '历史文化' },
@@ -255,37 +268,24 @@ const generatePlan = async () => {
 
   loading.value = true
   
-  // 模拟AI规划过程
-  setTimeout(() => {
-    planResult.value = {
-      title: `${form.destination} ${form.startDate} - ${form.endDate} 行程`,
-      summary: `为您规划的${form.destination}${form.budget ? ` ${form.budget}元预算` : ''}行程`,
-      days: [
-        {
-          day: 1,
-          date: form.startDate,
-          morning: ['天安门广场参观', '故宫博物院游览'],
-          afternoon: ['王府井午餐', '景山公园观景'],
-          evening: ['全聚德烤鸭晚餐', '前门大街夜景']
-        },
-        {
-          day: 2,
-          date: new Date(new Date(form.startDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          morning: ['八达岭长城游览'],
-          afternoon: ['长城脚下农家乐午餐', '明十三陵参观'],
-          evening: ['返回市区', '三里屯晚餐']
-        },
-        {
-          day: 3,
-          date: new Date(new Date(form.startDate).getTime() + 48 * 60 * 60 * 1000).toISOString().split('T')[0],
-          morning: ['颐和园游览'],
-          afternoon: ['圆明园参观', '中关村科技体验'],
-          evening: ['特色餐厅告别晚餐', '准备返程']
-        }
-      ]
+  try {
+    const request: AITripPlanRequest = {
+      destination: form.destination,
+      start_date: form.startDate,
+      end_date: form.endDate,
+      budget: form.budget ? parseInt(form.budget) : undefined,
+      travelers_count: form.travelers,
+      interests: form.interests
     }
+
+    const plan = await aiService.generateTripPlan(request)
+    planResult.value = plan
+  } catch (error: any) {
+    console.error('AI行程规划失败:', error)
+    alert(`AI行程规划失败: ${error.message}`)
+  } finally {
     loading.value = false
-  }, 3000)
+  }
 }
 
 const savePlan = () => {

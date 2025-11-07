@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -52,8 +53,17 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
-  // 这里可以添加认证检查逻辑
-  next()
+  // 导入认证存储
+  const authStore = useAuthStore()
+  
+  // 检查是否需要认证
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    // 如果页面需要认证但用户未登录，重定向到登录页面
+    next({ name: 'Login', query: { redirect: to.fullPath } })
+  } else {
+    // 否则继续导航
+    next()
+  }
 })
 
 export default router
