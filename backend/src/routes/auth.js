@@ -105,12 +105,8 @@ router.post('/register', async (req, res, next) => {
       throw new AppError(`创建用户记录失败: ${userError.message}`)
     }
 
-    // 生成JWT token
-    const token = jwt.sign(
-      { userId: authData.user.id, email, username },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
-    )
+    // 使用Supabase认证返回的access_token
+    const token = authData.session.access_token
 
     logger.info('用户注册成功', { email, username })
 
@@ -195,12 +191,8 @@ router.post('/login', async (req, res, next) => {
       throw new AppError('用户信息获取失败')
     }
 
-    // 生成JWT token
-    const token = jwt.sign(
-      { userId: userData.id, email: userData.email, username: userData.username },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
-    )
+    // 使用Supabase认证返回的access_token
+    const token = authData.session.access_token
 
     logger.info('用户登录成功', { email })
 
@@ -226,11 +218,9 @@ router.get('/me', async (req, res, next) => {
       throw new UnauthorizedError('请提供认证token')
     }
 
-    // 验证token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET)
-
-    // 如果没有配置Supabase，使用模拟数据
+    // 如果没有配置Supabase，使用JWT验证
     if (!supabase) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET)
       const userData = {
         id: decoded.userId,
         email: decoded.email || 'dev@example.com',
@@ -246,11 +236,18 @@ router.get('/me', async (req, res, next) => {
       return
     }
 
+    // 使用Supabase验证token并获取用户信息
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    
+    if (error || !user) {
+      throw new UnauthorizedError('无效的token')
+    }
+
     // 获取用户资料
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('id, email, username, avatar, created_at')
-      .eq('id', decoded.userId)
+      .eq('id', user.id)
       .single()
 
     if (userError || !userData) {

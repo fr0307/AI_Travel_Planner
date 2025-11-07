@@ -27,6 +27,8 @@ export const authService = {
         // 存储token到localStorage
         if (response.data.token) {
           localStorage.setItem('auth_token', response.data.token)
+        } else {
+          console.warn('登录响应中没有token字段')
         }
         return response.data.user
       } else {

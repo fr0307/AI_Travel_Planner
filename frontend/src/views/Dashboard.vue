@@ -112,7 +112,7 @@
                   <div>
                     <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ trip.title }}</h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400">
-                      {{ trip.startDate }} - {{ trip.endDate }} • {{ trip.days }}天 • {{ trip.travelers }}人
+                      {{ formatTripDate(trip.start_date) }} - {{ formatTripDate(trip.end_date) }} • {{ calculateTripDays(trip.start_date, trip.end_date) }}天 • {{ trip.travelers_count }}人
                     </p>
                   </div>
                 </div>
@@ -176,17 +176,23 @@
         <!-- 分页 -->
         <div v-if="trips.length > 0" class="mt-6 flex items-center justify-between">
           <div class="text-sm text-gray-700 dark:text-gray-300">
-            显示第 1 到 {{ trips.length }} 条，共 {{ trips.length }} 条记录
+            显示第 {{ (currentPage - 1) * 10 + 1 }} 到 {{ Math.min(currentPage * 10, totalTrips) }} 条，共 {{ totalTrips }} 条记录
           </div>
           <div class="flex space-x-2">
             <button 
               :disabled="currentPage === 1"
+              @click="goToPage(currentPage - 1)"
               class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               上一页
             </button>
+            <span class="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+              第 {{ currentPage }} 页，共 {{ totalPages }} 页
+            </span>
             <button 
-              class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              :disabled="currentPage === totalPages"
+              @click="goToPage(currentPage + 1)"
+              class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               下一页
             </button>
@@ -201,10 +207,13 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import NavigationBar from '@/components/NavigationBar.vue'
+import { tripsService, type Trip } from '@/services/trips'
 
 const router = useRouter()
 const loading = ref(true)
 const currentPage = ref(1)
+const totalTrips = ref(0)
+const totalPages = ref(1)
 
 const stats = ref({
   totalTrips: 0,
@@ -212,63 +221,49 @@ const stats = ref({
   totalDays: 0
 })
 
-const trips = ref([
-  {
-    id: '1',
-    title: '北京文化之旅',
-    destination: '北京',
-    startDate: '2024-01-15',
-    endDate: '2024-01-18',
-    days: 4,
-    travelers: 2,
-    budget: 5000,
-    status: 'completed',
-    createdAt: '2024-01-10T10:00:00Z'
-  },
-  {
-    id: '2',
-    title: '上海美食探索',
-    destination: '上海',
-    startDate: '2024-02-20',
-    endDate: '2024-02-23',
-    days: 4,
-    travelers: 1,
-    budget: 3000,
-    status: 'active',
-    createdAt: '2024-02-15T14:30:00Z'
-  },
-  {
-    id: '3',
-    title: '杭州西湖休闲游',
-    destination: '杭州',
-    startDate: '2024-03-10',
-    endDate: '2024-03-12',
-    days: 3,
-    travelers: 3,
-    budget: 2000,
-    status: 'planned',
-    createdAt: '2024-03-01T09:15:00Z'
-  }
-])
+const trips = ref<Trip[]>([])
 
 onMounted(() => {
   loadDashboardData()
 })
 
-const loadDashboardData = () => {
-  // 模拟加载数据
-  setTimeout(() => {
-    stats.value = {
-      totalTrips: trips.value.length,
-      activeTrips: trips.value.filter(trip => trip.status === 'active').length,
-      totalDays: trips.value.reduce((sum, trip) => sum + trip.days, 0)
+const loadDashboardData = async () => {
+  try {
+    loading.value = true
+    const response = await tripsService.getTrips(currentPage.value, 10)
+    
+    if (response.success) {
+      trips.value = response.data.trips
+      totalTrips.value = response.data.pagination.total
+      totalPages.value = response.data.pagination.totalPages
+      
+      // 计算统计数据
+      stats.value = {
+        totalTrips: totalTrips.value,
+        activeTrips: trips.value.filter(trip => trip.status === 'active').length,
+        totalDays: calculateTotalDays(trips.value)
+      }
     }
+  } catch (error) {
+    console.error('加载行程数据失败:', error)
+    alert('加载行程数据失败，请稍后重试')
+  } finally {
     loading.value = false
-  }, 1000)
+  }
+}
+
+const calculateTotalDays = (trips: Trip[]) => {
+  return trips.reduce((sum, trip) => {
+    const startDate = new Date(trip.start_date)
+    const endDate = new Date(trip.end_date)
+    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    return sum + days
+  }, 0)
 }
 
 const getStatusText = (status: string) => {
   const statusMap: { [key: string]: string } = {
+    'draft': '草稿',
     'planned': '计划中',
     'active': '进行中',
     'completed': '已完成'
@@ -280,6 +275,20 @@ const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('zh-CN')
 }
 
+const formatTripDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+
+const calculateTripDays = (startDate: string, endDate: string) => {
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+}
+
 const viewTrip = (tripId: string) => {
   router.push(`/trip/${tripId}`)
 }
@@ -288,11 +297,24 @@ const editTrip = (tripId: string) => {
   router.push(`/planner?edit=${tripId}`)
 }
 
-const deleteTrip = (tripId: string) => {
+const deleteTrip = async (tripId: string) => {
   if (confirm('确定要删除这个行程吗？')) {
-    // 模拟删除操作
-    trips.value = trips.value.filter(trip => trip.id !== tripId)
-    loadDashboardData() // 重新加载统计数据
+    try {
+      await tripsService.deleteTrip(tripId)
+      // 重新加载数据
+      await loadDashboardData()
+      alert('行程删除成功')
+    } catch (error) {
+      console.error('删除行程失败:', error)
+      alert('删除行程失败，请稍后重试')
+    }
+  }
+}
+
+const goToPage = (page: number) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+    loadDashboardData()
   }
 }
 </script>
