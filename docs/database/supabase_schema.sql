@@ -7,8 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    username VARCHAR(100) NOT NULL,
+    username VARCHAR(100) UNIQUE NOT NULL,
     avatar VARCHAR(500),
     preferences JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -122,8 +121,8 @@ CREATE TRIGGER update_trip_days_updated_at BEFORE UPDATE ON trip_days FOR EACH R
 CREATE TRIGGER update_trip_day_items_updated_at BEFORE UPDATE ON trip_day_items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- 插入示例数据（可选）
-INSERT INTO users (id, email, username, preferences) VALUES 
-('11111111-1111-1111-1111-111111111111', 'demo@example.com', '演示用户', '{"theme": "light", "language": "zh-CN"}');
+INSERT INTO users (id, username, preferences) VALUES 
+('11111111-1111-1111-1111-111111111111', '演示用户', '{"theme": "light", "language": "zh-CN"}');
 
 INSERT INTO trips (id, user_id, title, destination, start_date, end_date, budget, travelers_count, preferences) VALUES 
 ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', '北京三日游', '北京', '2024-01-15', '2024-01-17', 5000.00, 2, '{"interests": ["历史", "美食"], "transport": "地铁"}');

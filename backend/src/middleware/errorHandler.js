@@ -37,7 +37,7 @@ export const errorHandler = (err, req, res, next) => {
   // 生产环境下隐藏详细错误信息
   const isProduction = process.env.NODE_ENV === 'production'
   const errorResponse = {
-    error: true,
+    success: false,
     message: isProduction && statusCode === 500 ? '内部服务器错误' : message,
     ...(isProduction ? {} : { stack: err.stack }),
   }

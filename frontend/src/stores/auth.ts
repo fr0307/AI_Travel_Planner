@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { User } from '@supabase/supabase-js'
+import { authService, type User } from '@/services/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -16,11 +16,54 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = loading
   }
 
+  const login = async (credentials: { username: string; password: string }) => {
+    try {
+      setLoading(true)
+      const userData = await authService.login(credentials)
+      setUser(userData)
+      return userData
+    } catch (error) {
+      console.error('Login failed:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const register = async (userData: { username: string; password: string }) => {
+    try {
+      setLoading(true)
+      const newUser = await authService.register(userData)
+      return newUser
+    } catch (error) {
+      console.error('Registration failed:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const logout = async () => {
+    try {
+      setLoading(true)
+      await authService.logout()
+      setUser(null)
+    } catch (error) {
+      console.error('Logout failed:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return {
     user,
     isAuthenticated,
     isLoading,
     setUser,
     setLoading,
+    login,
+    register,
+    logout,
   }
 })

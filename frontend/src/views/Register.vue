@@ -7,18 +7,18 @@
           <span class="text-white font-bold text-xl">AI</span>
         </div>
         <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-          登录您的账户
+          创建您的账户
         </h2>
         <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
           或
-          <router-link to="/register" class="font-medium text-blue-600 hover:text-blue-500">
-            注册新账户
+          <router-link to="/login" class="font-medium text-blue-600 hover:text-blue-500">
+            登录现有账户
           </router-link>
         </p>
       </div>
 
-      <!-- 登录表单 -->
-      <form class="mt-8 space-y-6" @submit.prevent="handleLogin">
+      <!-- 注册表单 -->
+      <form class="mt-8 space-y-6" @submit.prevent="handleRegister">
         <div class="rounded-md shadow-sm -space-y-px">
           <!-- 用户名输入 -->
           <div>
@@ -43,34 +43,45 @@
               v-model="form.password"
               name="password"
               type="password"
-              autocomplete="current-password"
+              autocomplete="new-password"
+              required
+              class="relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
+              placeholder="密码"
+            />
+          </div>
+          
+          <!-- 确认密码输入 -->
+          <div>
+            <label for="confirmPassword" class="sr-only">确认密码</label>
+            <input
+              id="confirmPassword"
+              v-model="form.confirmPassword"
+              name="confirmPassword"
+              type="password"
+              autocomplete="new-password"
               required
               class="relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
-              placeholder="密码"
+              placeholder="确认密码"
             />
           </div>
         </div>
 
-        <!-- 记住我和忘记密码 -->
-        <div class="flex items-center justify-between">
-          <div class="flex items-center">
-            <input
-              id="remember-me"
-              v-model="form.rememberMe"
-              name="remember-me"
-              type="checkbox"
-              class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label for="remember-me" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-              记住我
-            </label>
-          </div>
-
-          <div class="text-sm">
-            <a href="#" class="font-medium text-blue-600 hover:text-blue-500">
-              忘记密码？
-            </a>
-          </div>
+        <!-- 服务条款 -->
+        <div class="flex items-center">
+          <input
+            id="terms"
+            v-model="form.agreeTerms"
+            name="terms"
+            type="checkbox"
+            required
+            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          />
+          <label for="terms" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+            我同意
+            <a href="#" class="font-medium text-blue-600 hover:text-blue-500">服务条款</a>
+            和
+            <a href="#" class="font-medium text-blue-600 hover:text-blue-500">隐私政策</a>
+          </label>
         </div>
 
         <!-- 提交按钮 -->
@@ -83,7 +94,7 @@
             <span v-if="loading" class="absolute left-0 inset-y-0 flex items-center pl-3">
               <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
             </span>
-            {{ loading ? '登录中...' : '登录' }}
+            {{ loading ? '注册中...' : '注册' }}
           </button>
         </div>
 
@@ -121,12 +132,36 @@ const error = ref('')
 const form = reactive({
   username: '',
   password: '',
-  rememberMe: false,
+  confirmPassword: '',
+  agreeTerms: false,
 })
 
-const handleLogin = async () => {
-  if (!form.username || !form.password) {
-    error.value = '请输入用户名和密码'
+const validateForm = () => {
+  if (!form.username || !form.password || !form.confirmPassword) {
+    error.value = '请填写所有必填字段'
+    return false
+  }
+  
+  if (form.password.length < 6) {
+    error.value = '密码长度至少为6位'
+    return false
+  }
+  
+  if (form.password !== form.confirmPassword) {
+    error.value = '两次输入的密码不一致'
+    return false
+  }
+  
+  if (!form.agreeTerms) {
+    error.value = '请同意服务条款和隐私政策'
+    return false
+  }
+  
+  return true
+}
+
+const handleRegister = async () => {
+  if (!validateForm()) {
     return
   }
 
@@ -134,15 +169,15 @@ const handleLogin = async () => {
   error.value = ''
 
   try {
-    await authStore.login({
+    await authStore.register({
       username: form.username,
       password: form.password,
     })
     
-    // 登录成功，跳转到仪表盘
-    router.push('/dashboard')
+    // 注册成功，跳转到登录页面
+    router.push('/login')
   } catch (err: any) {
-    error.value = err.message || '登录失败，请检查用户名和密码'
+    error.value = err.message || '注册失败，请稍后重试'
   } finally {
     loading.value = false
   }
