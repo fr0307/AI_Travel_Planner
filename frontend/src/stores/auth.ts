@@ -16,7 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = loading
   }
 
-  const login = async (credentials: { username: string; password: string }) => {
+  const login = async (credentials: { email: string; password: string }) => {
     try {
       setLoading(true)
       const userData = await authService.login(credentials)
@@ -30,7 +30,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const register = async (userData: { username: string; password: string }) => {
+  const register = async (userData: { email: string; username: string; password: string }) => {
     try {
       setLoading(true)
       const newUser = await authService.register(userData)

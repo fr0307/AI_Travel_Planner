@@ -28,11 +28,11 @@ if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
  */
 router.post('/register', async (req, res, next) => {
   try {
-    const { username, password } = req.body
+    const { email, password, username } = req.body
 
     // 验证输入
-    if (!username || !password) {
-      throw new ValidationError('用户名和密码都是必填项')
+    if (!email || !password || !username) {
+      throw new ValidationError('邮箱、密码和用户名都是必填项')
     }
 
     if (password.length < 6) {
@@ -43,6 +43,12 @@ router.post('/register', async (req, res, next) => {
       throw new ValidationError('用户名长度至少3位')
     }
 
+    // 邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      throw new ValidationError('邮箱格式不正确')
+    }
+
     // 如果没有配置Supabase，使用模拟数据
     if (!supabase) {
       // 模拟用户ID生成
@@ -50,30 +56,29 @@ router.post('/register', async (req, res, next) => {
       
       // 生成JWT token
       const token = jwt.sign(
-        { userId, username },
+        { userId, email, username },
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRES_IN }
       )
 
-      logger.info('用户注册成功（模拟模式）', { username })
+      logger.info('用户注册成功（模拟模式）', { email, username })
 
       res.status(201).json({
         success: true,
         message: '注册成功（开发模式）',
-        data: {
-          user: {
-            id: userId,
-            username,
-          },
-          token: token
-        }
+        user: {
+          id: userId,
+          email,
+          username,
+        },
+        token: token
       })
       return
     }
 
     // 使用Supabase创建用户
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: `${username}@example.com`, // 使用虚拟邮箱
+      email,
       password,
     })
 
@@ -87,7 +92,8 @@ router.post('/register', async (req, res, next) => {
       .insert([
         {
           id: authData.user.id,
-          username: username,
+          email,
+          username,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }
@@ -101,21 +107,19 @@ router.post('/register', async (req, res, next) => {
 
     // 生成JWT token
     const token = jwt.sign(
-      { userId: authData.user.id, username },
+      { userId: authData.user.id, email, username },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     )
 
-    logger.info('用户注册成功', { username })
+    logger.info('用户注册成功', { email, username })
 
     res.status(201).json({
-      success: true,
-      message: '注册成功',
-      data: {
-        user: userData,
-        token: token
-      }
-    })
+    success: true,
+    message: '注册成功',
+    user: userData,
+    token: token
+  })
   } catch (error) {
     next(error)
   }
@@ -126,78 +130,85 @@ router.post('/register', async (req, res, next) => {
  */
 router.post('/login', async (req, res, next) => {
   try {
-    const { username, password } = req.body
+    const { email, password } = req.body
 
     // 验证输入
-    if (!username || !password) {
-      throw new ValidationError('用户名和密码都是必填项')
+    if (!email || !password) {
+      throw new ValidationError('邮箱和密码都是必填项')
+    }
+
+    // 邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      throw new ValidationError('邮箱格式不正确')
     }
 
     // 如果没有配置Supabase，使用模拟数据
     if (!supabase) {
-      // 模拟用户验证（开发模式下接受任何密码）
-      const userId = 'dev_' + username.replace(/[^a-zA-Z0-9]/g, '_')
+      // 模拟用户验证
+      if (email !== 'demo@example.com' || password !== 'password') {
+        throw new AppError('邮箱或密码错误')
+      }
+
+      const userId = 'user_123456'
       
       // 生成JWT token
       const token = jwt.sign(
-        { userId, username },
+        { userId, email, username: 'demo' },
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRES_IN }
       )
 
-      logger.info('用户登录成功（模拟模式）', { username })
+      logger.info('用户登录成功（模拟模式）', { email })
 
       res.json({
         success: true,
         message: '登录成功（开发模式）',
-        data: {
-          user: {
-            id: userId,
-            username,
-          },
-          token,
+        user: {
+          id: userId,
+          email,
+          username: 'demo',
         },
+        token: token
       })
       return
     }
 
-    // 用户认证 - 使用虚拟邮箱登录
+    // 使用Supabase进行邮箱密码认证
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: `${username}@example.com`,
+      email,
       password,
     })
 
     if (authError) {
-      throw new AppError(`登录失败: ${authError.message}`)
+      throw new AppError('邮箱或密码错误')
     }
 
-    // 获取用户资料
+    // 查询用户详细信息
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('id, username')
+      .select('*')
       .eq('id', authData.user.id)
       .single()
 
-    if (userError) {
-      throw new AppError(`获取用户信息失败: ${userError.message}`)
+    if (userError || !userData) {
+      throw new AppError('用户信息获取失败')
     }
 
     // 生成JWT token
     const token = jwt.sign(
-      { userId: authData.user.id, username },
+      { userId: userData.id, email: userData.email, username: userData.username },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     )
 
-    logger.info('用户登录成功', { username })
+    logger.info('用户登录成功', { email })
 
     res.json({
       success: true,
       message: '登录成功',
-      data: {
-        user: userData,
-        token,
-      },
+      user: userData,
+      token: token
     })
   } catch (error) {
     next(error)
@@ -222,6 +233,7 @@ router.get('/me', async (req, res, next) => {
     if (!supabase) {
       const userData = {
         id: decoded.userId,
+        email: decoded.email || 'dev@example.com',
         username: decoded.username || 'dev_user',
         avatar: null,
         created_at: new Date().toISOString(),
@@ -229,9 +241,7 @@ router.get('/me', async (req, res, next) => {
 
       res.json({
         success: true,
-        data: {
-          user: userData,
-        },
+        user: userData,
       })
       return
     }
@@ -239,7 +249,7 @@ router.get('/me', async (req, res, next) => {
     // 获取用户资料
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('id, username, avatar, created_at')
+      .select('id, email, username, avatar, created_at')
       .eq('id', decoded.userId)
       .single()
 
@@ -249,9 +259,7 @@ router.get('/me', async (req, res, next) => {
 
     res.json({
       success: true,
-      data: {
-        user: userData,
-      },
+      user: userData,
     })
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {

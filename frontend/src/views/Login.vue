@@ -20,18 +20,18 @@
       <!-- 登录表单 -->
       <form class="mt-8 space-y-6" @submit.prevent="handleLogin">
         <div class="rounded-md shadow-sm -space-y-px">
-          <!-- 用户名输入 -->
+          <!-- 邮箱输入 -->
           <div>
-            <label for="username" class="sr-only">用户名</label>
+            <label for="email" class="sr-only">邮箱</label>
             <input
-              id="username"
-              v-model="form.username"
-              name="username"
-              type="text"
-              autocomplete="username"
+              id="email"
+              v-model="form.email"
+              name="email"
+              type="email"
+              autocomplete="email"
               required
               class="relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
-              placeholder="用户名"
+              placeholder="邮箱地址"
             />
           </div>
           
@@ -119,14 +119,21 @@ const loading = ref(false)
 const error = ref('')
 
 const form = reactive({
-  username: '',
+  email: '',
   password: '',
   rememberMe: false,
 })
 
 const handleLogin = async () => {
-  if (!form.username || !form.password) {
-    error.value = '请输入用户名和密码'
+  if (!form.email || !form.password) {
+    error.value = '请输入邮箱和密码'
+    return
+  }
+
+  // 邮箱格式验证
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(form.email)) {
+    error.value = '邮箱格式不正确'
     return
   }
 
@@ -135,14 +142,14 @@ const handleLogin = async () => {
 
   try {
     await authStore.login({
-      username: form.username,
+      email: form.email,
       password: form.password,
     })
     
     // 登录成功，跳转到仪表盘
     router.push('/dashboard')
   } catch (err: any) {
-    error.value = err.message || '登录失败，请检查用户名和密码'
+    error.value = err.message || '登录失败，请检查邮箱和密码'
   } finally {
     loading.value = false
   }

@@ -20,6 +20,21 @@
       <!-- 注册表单 -->
       <form class="mt-8 space-y-6" @submit.prevent="handleRegister">
         <div class="rounded-md shadow-sm -space-y-px">
+          <!-- 邮箱输入 -->
+          <div>
+            <label for="email" class="sr-only">邮箱</label>
+            <input
+              id="email"
+              v-model="form.email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              class="relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
+              placeholder="邮箱地址"
+            />
+          </div>
+          
           <!-- 用户名输入 -->
           <div>
             <label for="username" class="sr-only">用户名</label>
@@ -30,7 +45,7 @@
               type="text"
               autocomplete="username"
               required
-              class="relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
+              class="relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
               placeholder="用户名"
             />
           </div>
@@ -130,6 +145,7 @@ const loading = ref(false)
 const error = ref('')
 
 const form = reactive({
+  email: '',
   username: '',
   password: '',
   confirmPassword: '',
@@ -137,8 +153,15 @@ const form = reactive({
 })
 
 const validateForm = () => {
-  if (!form.username || !form.password || !form.confirmPassword) {
+  if (!form.email || !form.username || !form.password || !form.confirmPassword) {
     error.value = '请填写所有必填字段'
+    return false
+  }
+  
+  // 邮箱格式验证
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(form.email)) {
+    error.value = '邮箱格式不正确'
     return false
   }
   
@@ -170,6 +193,7 @@ const handleRegister = async () => {
 
   try {
     await authStore.register({
+      email: form.email,
       username: form.username,
       password: form.password,
     })
