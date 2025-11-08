@@ -85,6 +85,9 @@ temp/
 uploads/
 */uploads/
 
+# 语音识别调试音频文件
+backend/src/services/*.wav
+
 # 证书文件
 *.pem
 *.crt
