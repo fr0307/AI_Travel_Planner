@@ -71,10 +71,27 @@ export const aiService = {
   /**
    * 语音识别处理
    */
-  async speechToText(audioData: string, audioFormat: string = 'wav'): Promise<{ text: string; confidence: number }> {
+  async speechToText(audioData: Int16Array, audioFormat: string = 'audio/L16;rate=16000'): Promise<{ text: string; confidence: number; duration?: number; fallback?: boolean }> {
+    console.log('[speechToText] 开始处理语音识别')
     try {
+      // 优化音频数据处理，避免爆栈
+      const audioBuffer = new Uint8Array(audioData.buffer)
+      console.log('[speechToText] 音频数据大小:', audioBuffer.length, '字节')
+      
+      // 使用更高效的方式转换Base64，避免爆栈
+      let base64Audio = ''
+      const chunkSize = 1024 * 1024 // 1MB分块处理
+      
+      for (let i = 0; i < audioBuffer.length; i += chunkSize) {
+        const chunk = audioBuffer.slice(i, i + chunkSize)
+        const chunkString = Array.from(chunk).map(byte => String.fromCharCode(byte)).join('')
+        base64Audio += btoa(chunkString)
+      }
+      
+      console.log('[speechToText] Base64编码完成，大小:', base64Audio.length, '字符')
+      
       const response = await apiClient.post('/ai/speech-to-text', {
-        audio_data: audioData,
+        audio_data: base64Audio,
         audio_format: audioFormat
       })
       

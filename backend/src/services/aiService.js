@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { createLogger } from '../middleware/logger.js'
 import dotenv from 'dotenv'
+import speechService from './speechService.js'
 
 // 在路由文件中直接加载环境变量
 dotenv.config()
@@ -205,15 +206,37 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
   }
 
   /**
-   * 语音识别处理（模拟实现）
+   * 语音识别处理 - 使用科大讯飞服务
    */
-  async speechToText(audioData, format) {
-    // 这里可以集成真实的语音识别服务
-    // 目前返回模拟数据
+  async speechToText(audioData, format = 'audio/L16;rate=16000') {
+    try {
+      // 检查科大讯飞配置是否可用
+      if (!process.env.IFLYTEK_APP_ID || !process.env.IFLYTEK_API_KEY || !process.env.IFLYTEK_API_SECRET) {
+        logger.warn('科大讯飞配置不完整，使用模拟语音识别')
+        return this.fallbackSpeechToText()
+      }
+      
+      // 使用科大讯飞语音识别服务
+      const result = await speechService.processAudioData(audioData)
+      
+      logger.info(`语音识别成功: ${result.text.substring(0, 50)}...`)
+      return result
+      
+    } catch (error) {
+      logger.error('科大讯飞语音识别失败，使用模拟数据:', error)
+      return this.fallbackSpeechToText()
+    }
+  }
+  
+  /**
+   * 备用语音识别（模拟实现）
+   */
+  fallbackSpeechToText() {
     return {
       text: '我想要规划一个去北京的旅行，预算5000元，时间3天',
       confidence: 0.95,
       duration: 3.2,
+      fallback: true
     }
   }
 

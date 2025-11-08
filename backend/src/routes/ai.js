@@ -116,26 +116,36 @@ router.post('/plan-trip', authenticate, async (req, res, next) => {
  */
 router.post('/speech-to-text', authenticate, async (req, res, next) => {
   try {
-    const { audio_data, audio_format = 'wav' } = req.body
+    const { audio_data, audio_format = 'audio/L16;rate=16000' } = req.body
 
     if (!audio_data) {
       throw new ValidationError('音频数据是必填项')
     }
 
+    // 解码Base64音频数据
+    const audioBuffer = Buffer.from(audio_data, 'base64')
+    
+    // 将Buffer转换为Int16Array
+    const int16Array = new Int16Array(audioBuffer.buffer, audioBuffer.byteOffset, audioBuffer.length / 2)
+
     // 使用AI服务进行语音识别处理
-    const textResult = await aiService.speechToText(audio_data, audio_format)
+    const textResult = await aiService.speechToText(int16Array, audio_format)
 
     logger.info('语音识别处理', { 
       userId: req.user.id,
-      textLength: textResult.text.length 
+      textLength: textResult.text.length,
+      confidence: textResult.confidence,
+      fallback: textResult.fallback || false
     })
 
     res.json({
       success: true,
-      message: '语音识别成功',
+      message: textResult.fallback ? '语音识别服务暂不可用，使用模拟数据' : '语音识别成功',
       data: {
         text: textResult.text,
         confidence: textResult.confidence,
+        duration: textResult.duration,
+        fallback: textResult.fallback || false
       },
     })
   } catch (error) {

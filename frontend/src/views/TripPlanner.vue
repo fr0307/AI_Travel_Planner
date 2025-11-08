@@ -244,20 +244,143 @@ const form = reactive({
   interests: [] as string[],
 })
 
-const toggleVoiceInput = () => {
-  isRecording.value = !isRecording.value
-  
+const toggleVoiceInput = async () => {
   if (isRecording.value) {
-    // 模拟语音识别结果
-    setTimeout(() => {
-      voiceText.value = '我想要去北京旅游，预算5000元，时间3天，喜欢历史文化和美食'
-      isRecording.value = false
-    }, 2000)
+    // 停止录音
+    isRecording.value = false
+    return
+  }
+  
+  // 开始录音
+  isRecording.value = true
+  
+  try {
+    // 检查浏览器是否支持录音
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('您的浏览器不支持录音功能')
+    }
+    
+    // 获取麦克风权限
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    
+    // 创建音频上下文，设置采样率为16kHz以匹配科大讯飞要求
+    const audioContext = new AudioContext({ sampleRate: 16000 })
+    const source = audioContext.createMediaStreamSource(stream)
+    
+    // 创建录音处理器
+    const processor = audioContext.createScriptProcessor(2048, 1, 1)
+    
+    let audioData: Int16Array[] = []
+    
+    processor.onaudioprocess = (event) => {
+      if (!isRecording.value) return
+      
+      const inputData = event.inputBuffer.getChannelData(0)
+      const int16Data = new Int16Array(inputData.length)
+      
+      // 转换为16位PCM数据
+      for (let i = 0; i < inputData.length; i++) {
+        int16Data[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768))
+      }
+      
+      audioData.push(int16Data)
+    }
+    
+    source.connect(processor)
+    processor.connect(audioContext.destination)
+    
+    // 录音5秒后自动停止
+    setTimeout(async () => {
+      if (isRecording.value) {
+        isRecording.value = false
+        
+        // 停止录音
+        stream.getTracks().forEach(track => track.stop())
+        processor.disconnect()
+        source.disconnect()
+        audioContext.close()
+        
+        // 合并音频数据
+        const totalLength = audioData.reduce((sum, arr) => sum + arr.length, 0)
+        const mergedData = new Int16Array(totalLength)
+        
+        let offset = 0
+        audioData.forEach(arr => {
+          mergedData.set(arr, offset)
+          offset += arr.length
+        })
+        
+        // 发送到后端进行语音识别
+        try {
+          const result = await aiService.speechToText(mergedData)
+          voiceText.value = result.text
+          
+          // 如果语音识别成功，自动填充表单
+          if (result.text && !result.fallback) {
+            autoFillFormFromSpeech(result.text)
+          }
+        } catch (error: any) {
+          console.error('语音识别失败:', error)
+          voiceText.value = '语音识别失败，请手动输入'
+        }
+      }
+    }, 5000)
+    
+  } catch (error: any) {
+    console.error('录音失败:', error)
+    isRecording.value = false
+    voiceText.value = '录音失败，请检查麦克风权限'
   }
 }
 
 const clearVoiceInput = () => {
   voiceText.value = ''
+}
+
+const autoFillFormFromSpeech = (text: string) => {
+  // 简单的关键词匹配来自动填充表单
+  const lowerText = text.toLowerCase()
+  console.log(lowerText)
+  
+  // 匹配目的地
+  const destinationMatch = lowerText.match(/去(\S+)/) || lowerText.match(/到(\S+)/)
+  if (destinationMatch && destinationMatch[1]) {
+    form.destination = destinationMatch[1]
+  }
+  
+  // 匹配预算
+  const budgetMatch = lowerText.match(/(\d+)元/) || lowerText.match(/预算(\d+)/)
+  if (budgetMatch && budgetMatch[1]) {
+    form.budget = budgetMatch[1]
+  }
+  
+  // 匹配天数
+  const daysMatch = lowerText.match(/(\d+)天/) || lowerText.match(/时间(\d+)/)
+  if (daysMatch && daysMatch[1]) {
+    const days = parseInt(daysMatch[1])
+    if (form.startDate) {
+      const startDate = new Date(form.startDate)
+      const endDate = new Date(startDate.getTime() + days * 24 * 60 * 60 * 1000)
+      form.endDate = endDate.toISOString().split('T')[0]
+    }
+  }
+  
+  // 匹配兴趣偏好
+  if (lowerText.includes('历史') || lowerText.includes('文化')) {
+    if (!form.interests.includes('history')) {
+      form.interests.push('history')
+    }
+  }
+  if (lowerText.includes('自然') || lowerText.includes('风光')) {
+    if (!form.interests.includes('nature')) {
+      form.interests.push('nature')
+    }
+  }
+  if (lowerText.includes('美食') || lowerText.includes('吃')) {
+    if (!form.interests.includes('food')) {
+      form.interests.push('food')
+    }
+  }
 }
 
 const generatePlan = async () => {
