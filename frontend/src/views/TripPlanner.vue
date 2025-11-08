@@ -244,15 +244,24 @@ const form = reactive({
   interests: [] as string[],
 })
 
+// 录音相关变量
+let audioContext: AudioContext | null = null
+let source: MediaStreamAudioSourceNode | null = null
+let processor: ScriptProcessorNode | null = null
+let stream: MediaStream | null = null
+let audioData: Int16Array[] = []
+let autoStopTimer: NodeJS.Timeout | null = null
+
 const toggleVoiceInput = async () => {
   if (isRecording.value) {
-    // 停止录音
-    isRecording.value = false
+    // 停止录音并立即进行识别
+    await stopRecordingAndRecognize()
     return
   }
   
   // 开始录音
   isRecording.value = true
+  audioData = []
   
   try {
     // 检查浏览器是否支持录音
@@ -261,16 +270,14 @@ const toggleVoiceInput = async () => {
     }
     
     // 获取麦克风权限
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     
     // 创建音频上下文，设置采样率为16kHz以匹配科大讯飞要求
-    const audioContext = new AudioContext({ sampleRate: 16000 })
-    const source = audioContext.createMediaStreamSource(stream)
+    audioContext = new AudioContext({ sampleRate: 16000 })
+    source = audioContext.createMediaStreamSource(stream)
     
     // 创建录音处理器
-    const processor = audioContext.createScriptProcessor(2048, 1, 1)
-    
-    let audioData: Int16Array[] = []
+    processor = audioContext.createScriptProcessor(2048, 1, 1)
     
     processor.onaudioprocess = (event) => {
       if (!isRecording.value) return
@@ -289,48 +296,87 @@ const toggleVoiceInput = async () => {
     source.connect(processor)
     processor.connect(audioContext.destination)
     
-    // 录音5秒后自动停止
-    setTimeout(async () => {
+    // 设置45秒后自动停止录音
+    autoStopTimer = setTimeout(async () => {
       if (isRecording.value) {
-        isRecording.value = false
-        
-        // 停止录音
-        stream.getTracks().forEach(track => track.stop())
-        processor.disconnect()
-        source.disconnect()
-        audioContext.close()
-        
-        // 合并音频数据
-        const totalLength = audioData.reduce((sum, arr) => sum + arr.length, 0)
-        const mergedData = new Int16Array(totalLength)
-        
-        let offset = 0
-        audioData.forEach(arr => {
-          mergedData.set(arr, offset)
-          offset += arr.length
-        })
-        
-        // 发送到后端进行语音识别
-        try {
-          const result = await aiService.speechToText(mergedData)
-          voiceText.value = result.text
-          
-          // 如果语音识别成功，自动填充表单
-          if (result.text && !result.fallback) {
-            autoFillFormFromSpeech(result.text)
-          }
-        } catch (error: any) {
-          console.error('语音识别失败:', error)
-          voiceText.value = '语音识别失败，请手动输入'
-        }
+        await stopRecordingAndRecognize()
       }
-    }, 5000)
+    }, 45000)
     
   } catch (error: any) {
     console.error('录音失败:', error)
     isRecording.value = false
     voiceText.value = '录音失败，请检查麦克风权限'
+    cleanupRecording()
   }
+}
+
+const stopRecordingAndRecognize = async () => {
+  isRecording.value = false
+  
+  // 清除自动停止计时器
+  if (autoStopTimer) {
+    clearTimeout(autoStopTimer)
+    autoStopTimer = null
+  }
+  
+  // 停止录音设备
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop())
+  }
+  
+  if (processor) {
+    processor.disconnect()
+  }
+  
+  if (source) {
+    source.disconnect()
+  }
+  
+  if (audioContext) {
+    await audioContext.close()
+  }
+  
+  // 检查是否有录音数据
+  if (audioData.length === 0) {
+    voiceText.value = '没有检测到录音数据，请重新录音'
+    cleanupRecording()
+    return
+  }
+  
+  // 合并音频数据
+  const totalLength = audioData.reduce((sum, arr) => sum + arr.length, 0)
+  const mergedData = new Int16Array(totalLength)
+  
+  let offset = 0
+  audioData.forEach(arr => {
+    mergedData.set(arr, offset)
+    offset += arr.length
+  })
+  
+  // 发送到后端进行语音识别
+  try {
+    const result = await aiService.speechToText(mergedData)
+    voiceText.value = result.text
+    
+    // 如果语音识别成功，自动填充表单
+    if (result.text && !result.fallback) {
+      autoFillFormFromSpeech(result.text)
+    }
+  } catch (error: any) {
+    console.error('语音识别失败:', error)
+    voiceText.value = '语音识别失败，请手动输入'
+  }
+  
+  cleanupRecording()
+}
+
+const cleanupRecording = () => {
+  audioContext = null
+  source = null
+  processor = null
+  stream = null
+  audioData = []
 }
 
 const clearVoiceInput = () => {
