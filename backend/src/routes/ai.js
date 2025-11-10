@@ -67,6 +67,7 @@ const authenticate = async (req, res, next) => {
 router.post('/plan-trip', authenticate, async (req, res, next) => {
   try {
     const {
+      departure,
       destination,
       start_date,
       end_date,
@@ -74,6 +75,7 @@ router.post('/plan-trip', authenticate, async (req, res, next) => {
       travelers_count,
       preferences = {},
       interests = [],
+      voice_text
     } = req.body
 
     // 验证输入
@@ -83,6 +85,7 @@ router.post('/plan-trip', authenticate, async (req, res, next) => {
 
     // 使用真实的AI服务生成行程规划
     const tripPlan = await aiService.generateTripPlan({
+      departure,
       destination,
       start_date,
       end_date,
@@ -90,6 +93,7 @@ router.post('/plan-trip', authenticate, async (req, res, next) => {
       travelers_count,
       preferences,
       interests,
+      voice_text
     })
 
     logger.info('AI行程规划生成', { 

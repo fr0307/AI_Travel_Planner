@@ -19,6 +19,20 @@
           <div class="lg:col-span-2">
             <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
               <form @submit.prevent="generatePlan">
+                <!-- 出发地 -->
+                <div class="mb-6">
+                  <label for="departure" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    出发地
+                  </label>
+                  <input
+                    id="departure"
+                    v-model="form.departure"
+                    type="text"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="例如：上海、广州、深圳"
+                  />
+                </div>
+
                 <!-- 目的地 -->
                 <div class="mb-6">
                   <label for="destination" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -236,6 +250,7 @@ const interests = [
 ]
 
 const form = reactive({
+  departure: '',
   destination: '',
   startDate: '',
   endDate: '',
@@ -393,6 +408,10 @@ const autoFillFormFromSpeech = async (text: string) => {
     console.log('[autoFillFormFromSpeech] 智能提取结果:', extractedInfo)
     
     // 使用提取的信息填充表单，只有识别到的项才会覆盖原有值
+    if (extractedInfo.departure) {
+      form.departure = extractedInfo.departure
+    }
+    
     if (extractedInfo.destination) {
       form.destination = extractedInfo.destination
     }
@@ -435,6 +454,12 @@ const autoFillFormFromSpeech = async (text: string) => {
     // 如果智能提取失败，回退到原来的关键词匹配逻辑
     console.log('[autoFillFormFromSpeech] 回退到关键词匹配逻辑')
     const lowerText = text.toLowerCase()
+    
+    // 匹配出发地
+    const departureMatch = lowerText.match(/从(\S+)出发/) || lowerText.match(/出发地(\S+)/)
+    if (departureMatch && departureMatch[1]) {
+      form.departure = departureMatch[1]
+    }
     
     // 匹配目的地
     const destinationMatch = lowerText.match(/去(\S+)/) || lowerText.match(/到(\S+)/)
@@ -488,12 +513,14 @@ const generatePlan = async () => {
   
   try {
     const request: AITripPlanRequest = {
+      departure: form.departure || undefined,
       destination: form.destination,
       start_date: form.startDate,
       end_date: form.endDate,
       budget: form.budget ? parseInt(form.budget) : undefined,
       travelers_count: form.travelers,
-      interests: form.interests
+      interests: form.interests,
+      voice_text: voiceText.value || undefined
     }
 
     const plan = await aiService.generateTripPlan(request)

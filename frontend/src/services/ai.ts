@@ -1,6 +1,7 @@
 import { apiClient } from '@/utils/api'
 
 export interface AITripPlanRequest {
+  departure?: string
   destination: string
   start_date: string
   end_date: string
@@ -8,6 +9,7 @@ export interface AITripPlanRequest {
   travelers_count?: number
   preferences?: Record<string, any>
   interests?: string[]
+  voice_text?: string
 }
 
 export interface AITripPlanResponse {
@@ -134,6 +136,7 @@ export const aiService = {
    * 使用大模型从语音识别文本中智能提取旅行规划相关的表单信息
    */
   async extractFormInfo(text: string): Promise<{
+    departure?: string
     destination?: string
     start_date?: string
     end_date?: string

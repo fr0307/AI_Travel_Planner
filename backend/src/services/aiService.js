@@ -72,11 +72,11 @@ class AIService {
    * 构建行程规划提示词
    */
   buildTripPlanPrompt(params) {
-    const { destination, start_date, end_date, budget, travelers_count, preferences, interests } = params
+    const { destination, start_date, end_date, budget, travelers_count, preferences, interests, voice_text } = params
     
     const days = Math.ceil((new Date(end_date) - new Date(start_date)) / (1000 * 60 * 60 * 24))
     
-    return `请为以下旅行需求生成详细的行程规划：
+    let prompt = `请为以下旅行需求生成详细的行程规划：
 
 目的地：${destination}
 旅行天数：${days}天
@@ -84,7 +84,20 @@ class AIService {
 结束日期：${end_date}
 ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${travelers_count}人\n` : ''}${interests.length > 0 ? `兴趣偏好：${interests.join('、')}\n` : ''}
 
-请生成包含以下信息的结构化行程规划：
+`
+
+    // 如果有语音识别结果，将其作为用户其他要求的参考
+    if (voice_text) {
+      prompt += `用户语音输入内容："${voice_text}"
+
+重要提示：语音识别结果仅供参考，可能包含用户的额外要求或偏好描述。
+但请注意，当语音识别结果与上述表单信息冲突时，请严格以表单信息为准。
+表单信息是用户最终确认的准确数据。
+
+`
+    }
+
+    prompt += `请生成包含以下信息的结构化行程规划：
 1. 行程标题
 2. 行程摘要
 3. 每日详细安排（按上午、下午、晚上分段）
@@ -116,6 +129,8 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
     }
   ]
 }`
+
+    return prompt
   }
 
   /**
