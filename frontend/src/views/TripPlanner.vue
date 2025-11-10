@@ -361,7 +361,7 @@ const stopRecordingAndRecognize = async () => {
     
     // 如果语音识别成功，自动填充表单
     if (result.text && !result.fallback) {
-      autoFillFormFromSpeech(result.text)
+      await autoFillFormFromSpeech(result.text)
     }
   } catch (error: any) {
     console.error('语音识别失败:', error)
@@ -383,48 +383,97 @@ const clearVoiceInput = () => {
   voiceText.value = ''
 }
 
-const autoFillFormFromSpeech = (text: string) => {
-  // 简单的关键词匹配来自动填充表单
-  const lowerText = text.toLowerCase()
-  console.log(lowerText)
-  
-  // 匹配目的地
-  const destinationMatch = lowerText.match(/去(\S+)/) || lowerText.match(/到(\S+)/)
-  if (destinationMatch && destinationMatch[1]) {
-    form.destination = destinationMatch[1]
-  }
-  
-  // 匹配预算
-  const budgetMatch = lowerText.match(/(\d+)元/) || lowerText.match(/预算(\d+)/)
-  if (budgetMatch && budgetMatch[1]) {
-    form.budget = budgetMatch[1]
-  }
-  
-  // 匹配天数
-  const daysMatch = lowerText.match(/(\d+)天/) || lowerText.match(/时间(\d+)/)
-  if (daysMatch && daysMatch[1]) {
-    const days = parseInt(daysMatch[1])
-    if (form.startDate) {
-      const startDate = new Date(form.startDate)
-      const endDate = new Date(startDate.getTime() + days * 24 * 60 * 60 * 1000)
-      form.endDate = endDate.toISOString().split('T')[0]
+const autoFillFormFromSpeech = async (text: string) => {
+  try {
+    console.log('[autoFillFormFromSpeech] 开始智能表单信息提取，文本:', text)
+    
+    // 使用AI服务进行智能表单信息提取
+    const extractedInfo = await aiService.extractFormInfo(text)
+    
+    console.log('[autoFillFormFromSpeech] 智能提取结果:', extractedInfo)
+    
+    // 使用提取的信息填充表单，只有识别到的项才会覆盖原有值
+    if (extractedInfo.destination) {
+      form.destination = extractedInfo.destination
     }
-  }
-  
-  // 匹配兴趣偏好
-  if (lowerText.includes('历史') || lowerText.includes('文化')) {
-    if (!form.interests.includes('history')) {
-      form.interests.push('history')
+    
+    if (extractedInfo.budget) {
+      form.budget = extractedInfo.budget.toString()
     }
-  }
-  if (lowerText.includes('自然') || lowerText.includes('风光')) {
-    if (!form.interests.includes('nature')) {
-      form.interests.push('nature')
+    
+    if (extractedInfo.start_date) {
+      form.startDate = extractedInfo.start_date
     }
-  }
-  if (lowerText.includes('美食') || lowerText.includes('吃')) {
-    if (!form.interests.includes('food')) {
-      form.interests.push('food')
+    
+    if (extractedInfo.end_date) {
+      form.endDate = extractedInfo.end_date
+    }
+    
+    if (extractedInfo.travelers_count) {
+      form.travelers = extractedInfo.travelers_count
+    }
+    
+    if (extractedInfo.interests && extractedInfo.interests.length > 0) {
+      // 合并兴趣偏好，避免重复
+      extractedInfo.interests.forEach(interest => {
+        if (!form.interests.includes(interest)) {
+          form.interests.push(interest)
+        }
+      })
+    }
+    
+    // 显示AI服务状态信息
+    if (extractedInfo.ai_service_available) {
+      console.log('[autoFillFormFromSpeech] 使用大模型智能提取表单信息')
+    } else {
+      console.log('[autoFillFormFromSpeech] AI服务不可用，使用规则提取')
+    }
+    
+  } catch (error: any) {
+    console.error('[autoFillFormFromSpeech] 智能表单信息提取失败:', error)
+    
+    // 如果智能提取失败，回退到原来的关键词匹配逻辑
+    console.log('[autoFillFormFromSpeech] 回退到关键词匹配逻辑')
+    const lowerText = text.toLowerCase()
+    
+    // 匹配目的地
+    const destinationMatch = lowerText.match(/去(\S+)/) || lowerText.match(/到(\S+)/)
+    if (destinationMatch && destinationMatch[1]) {
+      form.destination = destinationMatch[1]
+    }
+    
+    // 匹配预算
+    const budgetMatch = lowerText.match(/(\d+)元/) || lowerText.match(/预算(\d+)/)
+    if (budgetMatch && budgetMatch[1]) {
+      form.budget = budgetMatch[1]
+    }
+    
+    // 匹配天数
+    const daysMatch = lowerText.match(/(\d+)天/) || lowerText.match(/时间(\d+)/)
+    if (daysMatch && daysMatch[1]) {
+      const days = parseInt(daysMatch[1])
+      if (form.startDate) {
+        const startDate = new Date(form.startDate)
+        const endDate = new Date(startDate.getTime() + days * 24 * 60 * 60 * 1000)
+        form.endDate = endDate.toISOString().split('T')[0]
+      }
+    }
+    
+    // 匹配兴趣偏好
+    if (lowerText.includes('历史') || lowerText.includes('文化')) {
+      if (!form.interests.includes('history')) {
+        form.interests.push('history')
+      }
+    }
+    if (lowerText.includes('自然') || lowerText.includes('风光')) {
+      if (!form.interests.includes('nature')) {
+        form.interests.push('nature')
+      }
+    }
+    if (lowerText.includes('美食') || lowerText.includes('吃')) {
+      if (!form.interests.includes('food')) {
+        form.interests.push('food')
+      }
     }
   }
 }

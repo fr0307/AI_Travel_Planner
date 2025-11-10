@@ -258,6 +258,210 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
 
     return baseRecommendations[params.type] || baseRecommendations.attractions
   }
+
+  /**
+   * 智能提取表单信息
+   * 使用大模型从语音识别文本中智能提取旅行规划相关的表单信息
+   */
+  async extractFormInfoFromSpeech(text) {
+    if (!this.isAvailable()) {
+      logger.warn('OpenAI API不可用，使用基于规则的简单提取')
+      return this.simpleFormExtraction(text)
+    }
+
+    try {
+      // 获取当前时间信息
+      const now = new Date()
+      const currentYear = now.getFullYear()
+      const currentMonth = now.getMonth() + 1 // 月份从0开始，需要+1
+      const currentDay = now.getDate()
+
+      const prompt = `你是一个专业的旅行规划助手。请从用户的语音输入中智能提取旅行规划相关的表单信息。
+
+当前时间：${currentYear}年${currentMonth}月${currentDay}日
+用户语音输入："${text}"
+
+请严格按照以下JSON格式返回识别结果，只返回JSON，不要有其他内容：
+{
+  "destination": "目的地名称，如：北京、上海、杭州",
+  "budget": "预算金额（纯数字），如：5000",
+  "duration_days": "旅行天数（纯数字），如：3",
+  "travelers_count": "出行人数（纯数字），如：2",
+  "interests": ["兴趣标签数组，如：["history", "nature", "food"]"],
+  "start_date": "开始日期（YYYY-MM-DD格式），如：2024-01-15",
+  "end_date": "结束日期（YYYY-MM-DD格式），如：2024-01-18"
+}
+
+提取规则：
+1. 只提取明确提到的信息，没有提到的字段保持为空字符串或空数组
+2. 目的地：提取明确提到的城市或景点名称
+3. 预算：提取数字+货币单位（如5000元、3000块）
+4. 天数：提取数字+天/日（如3天、5日）
+5. 人数：提取数字+人（如2人、一家三口）
+6. 兴趣：根据关键词匹配（历史/文化→history，自然/风光→nature，美食/吃→food）
+7. 日期：提取明确的日期信息，如果没有则保持为空
+8. 对于日期信息，如果用户只提到月份或日期，请结合当前时间自动补全年份
+
+重要提示：
+1. 对于日期信息，如果用户只提供月份和日期，请默认使用当前年份
+2. 如果用户只提供月份，请使用当前年份和当前日期
+3. 如果用户只提供日期，请使用当前年份和当前月份
+4. 确保所有日期都符合YYYY-MM-DD格式
+
+请确保返回的是有效的JSON格式。`
+
+      const response = await this.client.post('', {
+        model: this.model,
+        messages: [
+          {
+            role: 'system',
+            content: '你是一个专业的旅行规划助手，擅长从自然语言中提取结构化信息。请严格按照指定的JSON格式返回结果。'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.1, // 低温度确保一致性
+        max_tokens: 500
+      })
+
+      const aiResponse = response.data.choices[0].message.content
+      
+      // 尝试从响应中提取JSON
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        const extractedInfo = JSON.parse(jsonMatch[0])
+        
+        // 验证和清理数据
+        return this.validateFormInfo(extractedInfo)
+      }
+      
+      // 如果无法解析JSON，使用简单规则提取
+      return this.simpleFormExtraction(text)
+      
+    } catch (error) {
+      logger.error('大模型表单信息提取失败，使用简单规则:', error)
+      return this.simpleFormExtraction(text)
+    }
+  }
+
+  /**
+   * 基于规则的简单表单信息提取（降级方案）
+   */
+  simpleFormExtraction(text) {
+    const lowerText = text.toLowerCase()
+    const result = {
+      destination: '',
+      budget: '',
+      duration_days: '',
+      travelers_count: '',
+      interests: [],
+      start_date: '',
+      end_date: ''
+    }
+
+    // 获取当前时间信息
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1
+    const currentDay = now.getDate()
+
+    // 匹配目的地
+    const destinationMatch = lowerText.match(/去(\S+)/) || lowerText.match(/到(\S+)/) || lowerText.match(/想去(\S+)/)
+    if (destinationMatch && destinationMatch[1]) {
+      result.destination = destinationMatch[1].trim()
+    }
+
+    // 匹配预算
+    const budgetMatch = lowerText.match(/(\d+)[元块]/) || lowerText.match(/预算(\d+)/)
+    if (budgetMatch && budgetMatch[1]) {
+      result.budget = budgetMatch[1]
+    }
+
+    // 匹配天数
+    const daysMatch = lowerText.match(/(\d+)[天日]/) || lowerText.match(/时间(\d+)/)
+    if (daysMatch && daysMatch[1]) {
+      result.duration_days = daysMatch[1]
+      // 使用当前日期作为开始日期
+      const startDate = new Date()
+      const endDate = new Date(startDate.getTime() + parseInt(daysMatch[1]) * 24 * 60 * 60 * 1000)
+      result.start_date = startDate.toISOString().split('T')[0]
+      result.end_date = endDate.toISOString().split('T')[0]
+    }
+
+    // 匹配具体日期（月份和日期）
+    const monthDayMatch = lowerText.match(/(\d+)月(\d+)日/) || lowerText.match(/(\d+)\.(\d+)/)
+    if (monthDayMatch && monthDayMatch[1] && monthDayMatch[2]) {
+      const month = parseInt(monthDayMatch[1])
+      const day = parseInt(monthDayMatch[2])
+      // 使用当前年份
+      result.start_date = `${currentYear}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+    }
+
+    // 匹配月份
+    const monthMatch = lowerText.match(/(\d+)月/)
+    if (monthMatch && monthMatch[1]) {
+      const month = parseInt(monthMatch[1])
+      // 使用当前年份和当前日期
+      result.start_date = `${currentYear}-${month.toString().padStart(2, '0')}-${currentDay.toString().padStart(2, '0')}`
+    }
+
+    // 匹配人数
+    const travelersMatch = lowerText.match(/(\d+)人/) || lowerText.match(/(\d+)个/)
+    if (travelersMatch && travelersMatch[1]) {
+      result.travelers_count = travelersMatch[1]
+    }
+
+    // 匹配兴趣偏好
+    if (lowerText.includes('历史') || lowerText.includes('文化')) {
+      result.interests.push('history')
+    }
+    if (lowerText.includes('自然') || lowerText.includes('风光')) {
+      result.interests.push('nature')
+    }
+    if (lowerText.includes('美食') || lowerText.includes('吃')) {
+      result.interests.push('food')
+    }
+
+    return result
+  }
+
+  /**
+   * 验证和清理表单信息
+   */
+  validateFormInfo(formInfo) {
+    const validated = { ...formInfo }
+
+    // 清理字符串字段
+    if (validated.destination && typeof validated.destination === 'string') {
+      validated.destination = validated.destination.trim()
+    }
+
+    // 确保数字字段是字符串格式
+    if (validated.budget && typeof validated.budget === 'number') {
+      validated.budget = validated.budget.toString()
+    }
+    if (validated.duration_days && typeof validated.duration_days === 'number') {
+      validated.duration_days = validated.duration_days.toString()
+    }
+    if (validated.travelers_count && typeof validated.travelers_count === 'number') {
+      validated.travelers_count = validated.travelers_count.toString()
+    }
+
+    // 确保interests是数组
+    if (!Array.isArray(validated.interests)) {
+      validated.interests = []
+    }
+
+    // 过滤无效的兴趣标签
+    const validInterests = ['history', 'nature', 'food', 'shopping', 'adventure']
+    validated.interests = validated.interests.filter(interest => 
+      validInterests.includes(interest)
+    )
+
+    return validated
+  }
 }
 
 // 创建单例实例

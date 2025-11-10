@@ -196,6 +196,44 @@ router.post('/recommendations', authenticate, async (req, res, next) => {
   }
 })
 
+/**
+ * 智能提取表单信息
+ * 使用大模型从语音识别文本中智能提取旅行规划相关的表单信息
+ */
+router.post('/extract-form-info', authenticate, async (req, res, next) => {
+  try {
+    const { text } = req.body
+
+    if (!text) {
+      throw new ValidationError('文本内容是必填项')
+    }
+
+    // 使用AI服务进行智能表单信息提取
+    const extractedInfo = await aiService.extractFormInfoFromSpeech(text)
+
+    logger.info('智能表单信息提取', { 
+      userId: req.user.id,
+      textLength: text.length,
+      extractedFields: Object.keys(extractedInfo).filter(key => 
+        extractedInfo[key] && 
+        (typeof extractedInfo[key] === 'string' ? extractedInfo[key].length > 0 : 
+         Array.isArray(extractedInfo[key]) ? extractedInfo[key].length > 0 : false)
+      ).length
+    })
+
+    res.json({
+      success: true,
+      message: aiService.isAvailable() ? '智能表单信息提取成功' : 'AI服务暂不可用，使用规则提取',
+      data: {
+        extracted_info: extractedInfo,
+        ai_service_available: aiService.isAvailable()
+      },
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
 // 模拟函数已被aiService.js中的真实AI服务替代
 
 export default router

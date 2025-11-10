@@ -65,6 +65,7 @@ class SpeechService {
         const ws = new WebSocket(authUrl)
         
         let finalResult = ''
+        let currentResult = ''
         let isFinal = false
         
         ws.on('open', () => {
@@ -142,15 +143,16 @@ class SpeechService {
               if (currentText && currentText.trim().length > 1) {
                 // 如果是最终结果或替换结果，则替换整个文本
                 if (wsData.pgs === 'rpl' || wsData.pgs === 'apd') {
-                  finalResult = currentText
+                  currentResult = currentText
                   isFinal = (wsData.pgs === 'rpl')
                 } else {
                   // 对于增量结果，使用当前完整文本
-                  finalResult = currentText
+                  currentResult = currentText
                 }
                 
                 logger.info('当前识别结果:', currentText, '最终结果:', finalResult, '状态:', wsData.pgs)
               } else {
+                finalResult += currentResult
                 logger.info('收到空识别结果，忽略更新')
               }
             }

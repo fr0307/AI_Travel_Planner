@@ -127,6 +127,42 @@ export const aiService = {
       console.error('推荐获取失败:', error)
       throw new Error(error.response?.data?.message || '推荐服务暂时不可用')
     }
+  },
+
+  /**
+   * 智能提取表单信息
+   * 使用大模型从语音识别文本中智能提取旅行规划相关的表单信息
+   */
+  async extractFormInfo(text: string): Promise<{
+    destination?: string
+    start_date?: string
+    end_date?: string
+    budget?: number
+    travelers_count?: number
+    preferences?: Record<string, any>
+    interests?: string[]
+    ai_service_available: boolean
+  }> {
+    try {
+      console.log('[extractFormInfo] 开始智能表单信息提取，文本长度:', text.length)
+      
+      const response = await apiClient.post('/ai/extract-form-info', {
+        text
+      })
+      
+      if (response.data.success) {
+        console.log('[extractFormInfo] 智能表单信息提取成功', response.data.data.extracted_info)
+        return {
+          ...response.data.data.extracted_info,
+          ai_service_available: response.data.data.ai_service_available
+        }
+      } else {
+        throw new Error(response.data.message || '表单信息提取失败')
+      }
+    } catch (error: any) {
+      console.error('智能表单信息提取失败:', error)
+      throw new Error(error.response?.data?.message || '智能表单信息提取服务暂时不可用')
+    }
   }
 }
 
