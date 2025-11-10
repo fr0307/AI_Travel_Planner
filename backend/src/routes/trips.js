@@ -198,12 +198,113 @@ router.post('/', authenticate, async (req, res, next) => {
         throw new Error('保存行程失败，请稍后重试')
       }
 
+      const savedTrip = data[0]
+
+      // 如果通过plan字段传入且包含days数据，保存每天的行程安排
+      if (plan && plan.days && plan.days.length > 0) {
+        try {
+          // 保存行程天数数据
+          const tripDaysData = plan.days.map(day => ({
+            trip_id: savedTrip.id,
+            day_number: day.day,
+            date: day.date,
+            summary: day.summary || '',
+            notes: day.notes || '',
+            ai_generated: true, // 标记为AI生成的行程天数
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }))
+
+          const { data: savedDays, error: daysError } = await supabase
+            .from('trip_days')
+            .insert(tripDaysData)
+            .select()
+
+          if (daysError) {
+            logger.error('保存行程天数数据失败', { error: daysError.message, tripId: savedTrip.id })
+            // 不抛出错误，继续返回行程基本信息
+          } else {
+            // 保存每天的行程项目
+            const dayItemsData = []
+            
+            for (const day of plan.days) {
+              const savedDay = savedDays.find(d => d.day_number === day.day)
+              if (savedDay && day.morning) {
+                day.morning.forEach((item, index) => {
+                  dayItemsData.push({
+                    trip_day_id: savedDay.id,
+                    item_type: 'activity',
+                    title: item,
+                    description: `上午活动：${item}`,
+                    order_index: index,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  })
+                })
+              }
+              
+              if (savedDay && day.afternoon) {
+                day.afternoon.forEach((item, index) => {
+                  dayItemsData.push({
+                    trip_day_id: savedDay.id,
+                    item_type: 'activity',
+                    title: item,
+                    description: `下午活动：${item}`,
+                    order_index: index + 10,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  })
+                })
+              }
+              
+              if (savedDay && day.evening) {
+                day.evening.forEach((item, index) => {
+                  dayItemsData.push({
+                    trip_day_id: savedDay.id,
+                    item_type: 'activity',
+                    title: item,
+                    description: `晚上活动：${item}`,
+                    order_index: index + 20,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  })
+                })
+              }
+            }
+
+            if (dayItemsData.length > 0) {
+              const { error: itemsError } = await supabase
+                .from('trip_day_items')
+                .insert(dayItemsData)
+
+              if (itemsError) {
+                logger.error('保存行程项目数据失败', { error: itemsError.message, tripId: savedTrip.id })
+              } else {
+                logger.info('行程天数数据保存成功', { 
+                  tripId: savedTrip.id, 
+                  daysCount: savedDays.length,
+                  itemsCount: dayItemsData.length 
+                })
+              }
+            }
+          }
+        } catch (daysError) {
+          logger.error('处理行程天数数据时出错', { 
+            error: daysError.message, 
+            tripId: savedTrip.id,
+            userId: req.user.id 
+          })
+          // 不抛出错误，继续返回行程基本信息
+        }
+      }
+
       logger.info('行程保存成功', { 
         userId: req.user.id,
-        tripId: data[0].id,
+        tripId: savedTrip.id,
         destination: tripData.destination,
         departure: tripData.departure,
-        aiGenerated: !!plan
+        aiGenerated: !!plan,
+        hasDaysData: !!(plan && plan.days)
       })
 
       res.status(201).json({
@@ -212,20 +313,33 @@ router.post('/', authenticate, async (req, res, next) => {
         data: {
           trip: {
             ...tripData,
-            id: data[0].id,
+            id: savedTrip.id,
             user_id: req.user.id,
-            saved_at: data[0].created_at
+            saved_at: savedTrip.created_at
           }
         },
       })
     } else {
       // 如果没有配置数据库，返回成功但仅记录日志
+      const simulatedTripId = plan?.id || 'simulated'
+      
+      // 模拟保存行程天数数据
+      if (plan && plan.days && plan.days.length > 0) {
+        logger.info('模拟保存行程天数数据', { 
+          tripId: simulatedTripId,
+          daysCount: plan.days.length,
+          itemsCount: plan.days.reduce((sum, day) => 
+            sum + (day.morning?.length || 0) + (day.afternoon?.length || 0) + (day.evening?.length || 0), 0)
+        })
+      }
+
       logger.info('行程保存成功（模拟模式）', { 
         userId: req.user.id,
-        tripId: plan?.id || 'simulated',
+        tripId: simulatedTripId,
         destination: tripData.destination,
         departure: tripData.departure,
-        aiGenerated: !!plan
+        aiGenerated: !!plan,
+        hasDaysData: !!(plan && plan.days)
       })
 
       res.status(201).json({
@@ -234,7 +348,7 @@ router.post('/', authenticate, async (req, res, next) => {
         data: {
           trip: {
             ...tripData,
-            id: plan?.id || 'simulated',
+            id: simulatedTripId,
             user_id: req.user.id,
             saved_at: new Date().toISOString()
           }

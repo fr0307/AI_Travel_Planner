@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS trip_days (
     date DATE NOT NULL,
     summary TEXT,
     notes TEXT,
+    ai_generated BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(trip_id, day_number)
