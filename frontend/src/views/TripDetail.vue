@@ -18,8 +18,27 @@
           </button>
         </div>
 
+        <!-- 加载状态 -->
+        <div v-if="loading" class="flex justify-center items-center py-12">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <span class="ml-3 text-gray-600 dark:text-gray-400">加载中...</span>
+        </div>
+
+        <!-- 错误状态 -->
+        <div v-else-if="error" class="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6 mb-8">
+          <div class="flex items-center">
+            <svg class="h-6 w-6 text-red-500 dark:text-red-400 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h3 class="text-lg font-medium text-red-800 dark:text-red-200">加载失败</h3>
+              <p class="text-red-700 dark:text-red-300">{{ error }}</p>
+            </div>
+          </div>
+        </div>
+
         <!-- 行程头部信息 -->
-        <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-8">
+        <div v-else class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-8">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-4">
               <div class="h-16 w-16 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
@@ -38,14 +57,14 @@
                     <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    {{ trip.startDate }} - {{ trip.endDate }}
+                    {{ trip.start_date }} - {{ trip.end_date }}
                   </span>
                   <span class="flex items-center">
-                    <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                    </svg>
-                    {{ trip.travelers }}人
-                  </span>
+                      <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                      </svg>
+                      {{ trip.travelers_count }}人
+                    </span>
                   <span class="flex items-center">
                     <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -239,7 +258,7 @@
                     <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <span class="text-gray-600 dark:text-gray-400">行程天数：{{ trip.days }}天</span>
+                    <span class="text-gray-600 dark:text-gray-400">行程天数：{{ trip.days_count }}天</span>
                   </div>
                 </div>
               </div>
@@ -280,61 +299,28 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import NavigationBar from '@/components/NavigationBar.vue'
+import TripService, { type Trip } from '@/services/tripService'
 
 const router = useRouter()
 const route = useRoute()
 
 const trip = ref({
-  id: '1',
-  title: '北京文化之旅',
-  destination: '北京',
-  origin: '上海',
-  startDate: '2024-01-15',
-  endDate: '2024-01-18',
-  days: 4,
-  travelers: 2,
-  budget: 5000,
-  status: 'completed',
-  description: '一次充满历史文化气息的北京之旅，探索古都的魅力与现代的活力。',
-  days: [
-    {
-      day: 1,
-      date: '2024-01-15',
-      weather: '晴，-5°C ~ 5°C',
-      budget: 1200,
-      morning: ['天安门广场参观', '故宫博物院游览'],
-      afternoon: ['王府井午餐', '景山公园观景'],
-      evening: ['全聚德烤鸭晚餐', '前门大街夜景']
-    },
-    {
-      day: 2,
-      date: '2024-01-16',
-      weather: '多云，-3°C ~ 7°C',
-      budget: 1500,
-      morning: ['八达岭长城游览'],
-      afternoon: ['长城脚下农家乐午餐', '明十三陵参观'],
-      evening: ['返回市区', '三里屯晚餐']
-    },
-    {
-      day: 3,
-      date: '2024-01-17',
-      weather: '晴，-2°C ~ 8°C',
-      budget: 1300,
-      morning: ['颐和园游览'],
-      afternoon: ['圆明园参观', '中关村科技体验'],
-      evening: ['特色餐厅告别晚餐']
-    },
-    {
-      day: 4,
-      date: '2024-01-18',
-      weather: '多云，-1°C ~ 6°C',
-      budget: 1000,
-      morning: ['天坛公园游览', '购买特产'],
-      afternoon: ['午餐后前往机场', '办理登机手续'],
-      evening: ['返回上海']
-    }
-  ]
+  id: '',
+  title: '',
+  destination: '',
+  origin: '',
+  start_date: '',
+  end_date: '',
+  days_count: 0,
+  travelers_count: 1,
+  budget: 0,
+  status: 'draft',
+  description: '',
+  days: []
 })
+
+const loading = ref(true)
+const error = ref('')
 
 const allocatedBudget = computed(() => {
   return trip.value.days.reduce((sum, day) => sum + day.budget, 0)
@@ -344,10 +330,33 @@ const remainingBudget = computed(() => {
   return trip.value.budget - allocatedBudget.value
 })
 
-onMounted(() => {
-  const tripId = route.params.id
-  // 这里应该根据tripId从API获取行程详情
-  console.log('加载行程详情:', tripId)
+onMounted(async () => {
+  const tripId = route.params.id as string
+  
+  if (!tripId) {
+    error.value = '行程ID不能为空'
+    loading.value = false
+    return
+  }
+
+  try {
+    loading.value = true
+    error.value = ''
+    
+    // 从后端API获取行程详情
+    const tripData = await TripService.getTripDetail(tripId)
+    
+    // 将数据库格式转换为前端显示格式
+    const formattedTrip = TripService.formatTripForDisplay(tripData)
+    trip.value = formattedTrip
+    
+    console.log('行程详情加载成功:', tripData)
+  } catch (err) {
+    console.error('加载行程详情失败:', err)
+    error.value = '加载行程详情失败，请稍后重试'
+  } finally {
+    loading.value = false
+  }
 })
 
 const getStatusText = (status: string) => {
