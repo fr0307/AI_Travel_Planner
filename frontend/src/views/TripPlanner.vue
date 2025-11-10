@@ -189,9 +189,9 @@
                   <div v-for="day in planResult.days" :key="day.day" class="border-l-4 border-blue-500 pl-4">
                     <h5 class="font-medium text-gray-900 dark:text-white">第{{ day.day }}天 - {{ day.date }}</h5>
                     <div class="mt-1 space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                      <div>上午：{{ day.morning.join('、') }}</div>
-                      <div>下午：{{ day.afternoon.join('、') }}</div>
-                      <div>晚上：{{ day.evening.join('、') }}</div>
+                      <div>上午：{{ formatActivities(day.morning) }}</div>
+                      <div>下午：{{ formatActivities(day.afternoon) }}</div>
+                      <div>晚上：{{ formatActivities(day.evening) }}</div>
                     </div>
                     <p v-if="day.notes" class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ day.notes }}</p>
                   </div>
@@ -258,6 +258,20 @@ const form = reactive({
   travelers: 1,
   interests: [] as string[],
 })
+
+// 格式化活动显示，兼容新旧数据结构
+const formatActivities = (activities: any[]): string => {
+  if (!activities || activities.length === 0) return '暂无安排'
+  
+  return activities.map(activity => {
+    // 如果是对象格式（新格式），显示activity和location
+    if (typeof activity === 'object' && activity !== null) {
+      return activity.location ? `${activity.activity}（${activity.location}）` : activity.activity
+    }
+    // 如果是字符串格式（旧格式），直接显示
+    return activity
+  }).join('、')
+}
 
 // 录音相关变量
 let audioContext: AudioContext | null = null

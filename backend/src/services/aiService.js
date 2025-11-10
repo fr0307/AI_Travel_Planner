@@ -104,6 +104,12 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
 4. 推荐景点和活动
 5. 预算建议
 
+重要要求: 
+1.对于每个活动，请同时提供活动地点（location）信息。
+2.每个时间段的活动数量不限定为两条, 可根据预计所需时间增减活动数量。
+3.需要确保午餐、晚餐被包含在活动中
+4.晚上最后一条活动必须是返回酒店，需要给出具体酒店名称
+
 请以JSON格式返回，结构如下：
 {
   "title": "行程标题",
@@ -114,9 +120,36 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
     {
       "day": 1,
       "date": "日期",
-      "morning": ["上午活动1", "上午活动2"],
-      "afternoon": ["下午活动1", "下午活动2"],
-      "evening": ["晚上活动1", "晚上活动2"],
+      "morning": [
+        {
+          "activity": "上午活动1",
+          "location": "活动地点1"
+        },
+        {
+          "activity": "上午活动2", 
+          "location": "活动地点2"
+        }
+      ],
+      "afternoon": [
+        {
+          "activity": "下午活动1",
+          "location": "活动地点3"
+        },
+        {
+          "activity": "下午活动2",
+          "location": "活动地点4"
+        }
+      ],
+      "evening": [
+        {
+          "activity": "晚上活动1",
+          "location": "活动地点5"
+        },
+        {
+          "activity": "晚上活动2",
+          "location": "活动地点6"
+        }
+      ],
       "notes": "注意事项"
     }
   ],
@@ -143,6 +176,62 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
       if (jsonMatch) {
         console.log("json match")
         const parsed = JSON.parse(jsonMatch[0])
+        
+        // 处理days数据，兼容新旧格式
+        let processedDays = parsed.days || this.generateFallbackItinerary(params)
+        
+        // 如果days存在且是数组，处理每个day的活动数据
+        if (Array.isArray(processedDays)) {
+          processedDays = processedDays.map(day => {
+            // 处理morning活动
+            if (Array.isArray(day.morning)) {
+              day.morning = day.morning.map(item => {
+                if (typeof item === 'string') {
+                  // 旧格式：字符串，自动提取location
+                  return {
+                    activity: item,
+                    location: this.extractLocationFromActivity(item)
+                  }
+                }
+                // 新格式：对象，直接返回
+                return item
+              })
+            }
+            
+            // 处理afternoon活动
+            if (Array.isArray(day.afternoon)) {
+              day.afternoon = day.afternoon.map(item => {
+                if (typeof item === 'string') {
+                  // 旧格式：字符串，自动提取location
+                  return {
+                    activity: item,
+                    location: this.extractLocationFromActivity(item)
+                  }
+                }
+                // 新格式：对象，直接返回
+                return item
+              })
+            }
+            
+            // 处理evening活动
+            if (Array.isArray(day.evening)) {
+              day.evening = day.evening.map(item => {
+                if (typeof item === 'string') {
+                  // 旧格式：字符串，自动提取location
+                  return {
+                    activity: item,
+                    location: this.extractLocationFromActivity(item)
+                  }
+                }
+                // 新格式：对象，直接返回
+                return item
+              })
+            }
+            
+            return day
+          })
+        }
+        
         const ai_plan_res = {
           id: `plan_${Date.now()}`,
           title: parsed.title || `${params.destination} ${params.start_date} - ${params.end_date} 行程`,
@@ -151,7 +240,7 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
           duration_days: parsed.duration_days || Math.ceil((new Date(params.end_date) - new Date(params.start_date)) / (1000 * 60 * 60 * 24)),
           budget: parsed.budget || params.budget,
           summary: parsed.summary || `为您规划的${params.destination}${params.budget ? ` ${params.budget}元预算` : ''}行程`,
-          days: parsed.days || this.generateFallbackItinerary(params),
+          days: processedDays,
           recommendations: parsed.recommendations || this.generateFallbackRecommendations(params),
           created_at: new Date().toISOString(),
         }
@@ -184,6 +273,35 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
   }
 
   /**
+   * 从活动描述中提取地点信息
+   */
+  extractLocationFromActivity(activity) {
+    // 简单的规则提取地点信息
+    const locationPatterns = [
+      /在(.+?)进行/,
+      /到(.+?)参观/,
+      /前往(.+?)(?:游玩|游览|参观)/,
+      /在(.+?)(?:用餐|吃饭|就餐)/,
+      /(.+?)景区/,
+      /(.+?)景点/,
+      /(.+?)公园/,
+      /(.+?)博物馆/,
+      /(.+?)餐厅/,
+      /(.+?)酒店/,
+    ]
+    
+    for (const pattern of locationPatterns) {
+      const match = activity.match(pattern)
+      if (match && match[1]) {
+        return match[1].trim()
+      }
+    }
+    
+    // 如果无法提取，返回默认地点
+    return '待定地点'
+  }
+
+  /**
    * 生成备用每日行程
    */
   generateFallbackItinerary(params) {
@@ -194,9 +312,32 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
       itinerary.push({
         day: i + 1,
         date: new Date(new Date(params.start_date).getTime() + i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        morning: [`${params.destination}著名景点参观`],
-        afternoon: ['当地特色餐厅午餐', '文化体验活动'],
-        evening: ['晚餐', '夜景游览'],
+        morning: [
+          {
+            activity: `${params.destination}著名景点参观`,
+            location: `${params.destination}主要景区`
+          }
+        ],
+        afternoon: [
+          {
+            activity: '当地特色餐厅午餐',
+            location: `${params.destination}特色餐厅`
+          },
+          {
+            activity: '文化体验活动',
+            location: `${params.destination}文化中心`
+          }
+        ],
+        evening: [
+          {
+            activity: '晚餐',
+            location: `${params.destination}餐厅`
+          },
+          {
+            activity: '夜景游览',
+            location: `${params.destination}夜景观赏点`
+          }
+        ],
         notes: '根据您的偏好调整的具体安排',
       })
     }

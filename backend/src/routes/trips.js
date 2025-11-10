@@ -229,13 +229,19 @@ router.post('/', authenticate, async (req, res, next) => {
             
             for (const day of plan.days) {
               const savedDay = savedDays.find(d => d.day_number === day.day)
+              
+              // 处理上午活动
               if (savedDay && day.morning) {
                 day.morning.forEach((item, index) => {
+                  const activity = typeof item === 'object' ? item.activity : item
+                  const location = typeof item === 'object' ? item.location : extractLocationFromActivity(activity)
+                  
                   dayItemsData.push({
                     trip_day_id: savedDay.id,
                     item_type: 'activity',
-                    title: item,
-                    description: `上午活动：${item}`,
+                    title: activity,
+                    description: `上午活动：${activity}`,
+                    location: location,
                     order_index: index,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
@@ -243,13 +249,18 @@ router.post('/', authenticate, async (req, res, next) => {
                 })
               }
               
+              // 处理下午活动
               if (savedDay && day.afternoon) {
                 day.afternoon.forEach((item, index) => {
+                  const activity = typeof item === 'object' ? item.activity : item
+                  const location = typeof item === 'object' ? item.location : extractLocationFromActivity(activity)
+                  
                   dayItemsData.push({
                     trip_day_id: savedDay.id,
                     item_type: 'activity',
-                    title: item,
-                    description: `下午活动：${item}`,
+                    title: activity,
+                    description: `下午活动：${activity}`,
+                    location: location,
                     order_index: index + 10,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
@@ -257,13 +268,18 @@ router.post('/', authenticate, async (req, res, next) => {
                 })
               }
               
+              // 处理晚上活动
               if (savedDay && day.evening) {
                 day.evening.forEach((item, index) => {
+                  const activity = typeof item === 'object' ? item.activity : item
+                  const location = typeof item === 'object' ? item.location : extractLocationFromActivity(activity)
+                  
                   dayItemsData.push({
                     trip_day_id: savedDay.id,
                     item_type: 'activity',
-                    title: item,
-                    description: `晚上活动：${item}`,
+                    title: activity,
+                    description: `晚上活动：${activity}`,
+                    location: location,
                     order_index: index + 20,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
@@ -359,6 +375,39 @@ router.post('/', authenticate, async (req, res, next) => {
     next(error)
   }
 })
+
+/**
+ * 从活动描述中提取地点信息
+ */
+function extractLocationFromActivity(activity) {
+  // 简单的规则提取地点信息
+  const locationPatterns = [
+    /在(.+?)进行/,
+    /到(.+?)参观/,
+    /前往(.+?)(?:游玩|游览|参观)/,
+    /在(.+?)(?:用餐|吃饭|就餐)/,
+    /(.+?)景区/,
+    /(.+?)景点/,
+    /(.+?)公园/,
+    /(.+?)博物馆/,
+    /(.+?)餐厅/,
+    /(.+?)酒店/,
+  ]
+  
+  for (const pattern of locationPatterns) {
+    const match = activity.match(pattern)
+    if (match && match[1]) {
+      return match[1].trim()
+    }
+  }
+  
+  // 如果无法提取，返回默认地点
+  return '待定地点'
+}
+
+/**
+ * 更新行程
+ */
 
 /**
  * 更新行程
