@@ -23,6 +23,7 @@ export interface AITripPlanResponse {
 export interface TripPlan {
   id: string
   title: string
+  departure?: string
   destination: string
   duration_days: number
   budget?: number
@@ -30,6 +31,32 @@ export interface TripPlan {
   days: TripDay[]
   recommendations: Recommendation[]
   created_at: string
+}
+
+export interface SavePlanResponse {
+  success: boolean
+  message: string
+  data: {
+    trip: SavedTripPlan
+  }
+}
+
+export interface SavedTripPlan {
+  id: string
+  user_id: string
+  title: string
+  departure?: string
+  destination: string
+  start_date: string
+  end_date: string
+  budget?: number
+  travelers_count: number
+  preferences: Record<string, any>
+  ai_generated: boolean
+  status: string
+  created_at: string
+  updated_at: string
+  saved_at: string
 }
 
 export interface TripDay {
@@ -165,6 +192,29 @@ export const aiService = {
     } catch (error: any) {
       console.error('智能表单信息提取失败:', error)
       throw new Error(error.response?.data?.message || '智能表单信息提取服务暂时不可用')
+    }
+  },
+
+  /**
+   * 保存行程
+   */
+  async saveTripPlan(plan: TripPlan): Promise<SavedTripPlan> {
+    try {
+      console.log('[saveTripPlan] 开始保存行程', { planId: plan.id, destination: plan.destination })
+      
+      const response = await apiClient.post<SavePlanResponse>('/trips', {
+        plan
+      })
+      
+      if (response.data.success) {
+        console.log('[saveTripPlan] 行程保存成功', response.data.data.trip)
+        return response.data.data.trip
+      } else {
+        throw new Error(response.data.message || '行程保存失败')
+      }
+    } catch (error: any) {
+      console.error('行程保存失败:', error)
+      throw new Error(error.response?.data?.message || '行程保存服务暂时不可用')
     }
   }
 }

@@ -141,58 +141,106 @@ router.get('/:id', authenticate, async (req, res, next) => {
 })
 
 /**
- * 创建新行程
+ * 创建新行程（支持AI生成的行程保存）
  */
 router.post('/', authenticate, async (req, res, next) => {
   try {
-    const {
-      title,
-      destination,
-      start_date,
-      end_date,
-      budget,
-      travelers_count,
-      preferences,
-    } = req.body
-
-    // 验证输入
-    if (!title || !destination || !start_date || !end_date) {
-      throw new ValidationError('标题、目的地、开始日期和结束日期都是必填项')
-    }
-
-    const tripData = {
+    // 支持两种格式：直接传入行程数据或通过plan字段传入AI生成的行程
+    const { plan, ...directData } = req.body
+    
+    // 如果通过plan字段传入，使用AI生成的行程数据
+    const tripData = plan ? {
       user_id: req.user.id,
-      title,
-      destination,
-      start_date: new Date(start_date).toISOString(),
-      end_date: new Date(end_date).toISOString(),
-      budget: budget || null,
-      travelers_count: travelers_count || 1,
-      preferences: preferences || {},
+      title: plan.title,
+      departure: plan.departure || null,
+      destination: plan.destination,
+      start_date: plan.start_date || new Date().toISOString().split('T')[0],
+      end_date: plan.end_date || (plan.duration_days ? 
+        new Date(Date.now() + plan.duration_days * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : 
+        new Date().toISOString().split('T')[0]),
+      budget: plan.budget || null,
+      travelers_count: plan.travelers_count || 1,
+      preferences: plan.preferences || {},
+      ai_generated: true,
+      status: 'planned',
+      created_at: plan.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } : {
+      user_id: req.user.id,
+      title: directData.title,
+      departure: directData.departure || null,
+      destination: directData.destination,
+      start_date: new Date(directData.start_date).toISOString(),
+      end_date: new Date(directData.end_date).toISOString(),
+      budget: directData.budget || null,
+      travelers_count: directData.travelers_count || 1,
+      preferences: directData.preferences || {},
+      ai_generated: false,
       status: 'draft',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
 
-    const { data: trip, error } = await supabase
-      .from('trips')
-      .insert([tripData])
-      .select()
-      .single()
-
-    if (error) {
-      throw new Error(`创建行程失败: ${error.message}`)
+    // 验证输入
+    if (!tripData.title || !tripData.destination) {
+      throw new ValidationError('标题和目的地是必填项')
     }
 
-    logger.info('创建新行程', { tripId: trip.id, userId: req.user.id })
+    // 如果配置了Supabase，保存到数据库
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('trips')
+        .insert([tripData])
+        .select()
 
-    res.status(201).json({
-      success: true,
-      message: '行程创建成功',
-      data: {
-        trip,
-      },
-    })
+      if (error) {
+        logger.error('保存行程到数据库失败', { error: error.message, userId: req.user.id })
+        throw new Error('保存行程失败，请稍后重试')
+      }
+
+      logger.info('行程保存成功', { 
+        userId: req.user.id,
+        tripId: data[0].id,
+        destination: tripData.destination,
+        departure: tripData.departure,
+        aiGenerated: !!plan
+      })
+
+      res.status(201).json({
+        success: true,
+        message: plan ? '行程保存成功' : '行程创建成功',
+        data: {
+          trip: {
+            ...tripData,
+            id: data[0].id,
+            user_id: req.user.id,
+            saved_at: data[0].created_at
+          }
+        },
+      })
+    } else {
+      // 如果没有配置数据库，返回成功但仅记录日志
+      logger.info('行程保存成功（模拟模式）', { 
+        userId: req.user.id,
+        tripId: plan?.id || 'simulated',
+        destination: tripData.destination,
+        departure: tripData.departure,
+        aiGenerated: !!plan
+      })
+
+      res.status(201).json({
+        success: true,
+        message: plan ? '行程保存成功（模拟模式）' : '行程创建成功（模拟模式）',
+        data: {
+          trip: {
+            ...tripData,
+            id: plan?.id || 'simulated',
+            user_id: req.user.id,
+            saved_at: new Date().toISOString()
+          }
+        },
+      })
+    }
   } catch (error) {
     next(error)
   }

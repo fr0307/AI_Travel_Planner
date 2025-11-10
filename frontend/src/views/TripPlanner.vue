@@ -533,10 +533,19 @@ const generatePlan = async () => {
   }
 }
 
-const savePlan = () => {
-  if (planResult.value) {
-    alert('行程保存成功！')
-    // 这里应该调用API保存行程
+const savePlan = async () => {
+  if (!planResult.value) {
+    alert('请先生成行程后再保存')
+    return
+  }
+
+  try {
+    const savedPlan = await aiService.saveTripPlan(planResult.value)
+    alert(`行程保存成功！\n行程标题：${savedPlan.title}\n出发地：${savedPlan.departure || '未指定'}\n目的地：${savedPlan.destination}`)
+    console.log('行程保存成功:', savedPlan)
+  } catch (error: any) {
+    console.error('行程保存失败:', error)
+    alert(`行程保存失败：${error.message}`)
   }
 }
 </script>

@@ -146,6 +146,7 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
         const ai_plan_res = {
           id: `plan_${Date.now()}`,
           title: parsed.title || `${params.destination} ${params.start_date} - ${params.end_date} 行程`,
+          departure: params.departure,
           destination: params.destination,
           duration_days: parsed.duration_days || Math.ceil((new Date(params.end_date) - new Date(params.start_date)) / (1000 * 60 * 60 * 24)),
           budget: parsed.budget || params.budget,
