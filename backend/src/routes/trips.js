@@ -235,6 +235,7 @@ router.post('/', authenticate, async (req, res, next) => {
                 day.morning.forEach((item, index) => {
                   const activity = typeof item === 'object' ? item.activity : item
                   const location = typeof item === 'object' ? item.location : extractLocationFromActivity(activity)
+                  const budgetEstimate = typeof item === 'object' ? item.budget_estimate : 0
                   
                   dayItemsData.push({
                     trip_day_id: savedDay.id,
@@ -242,6 +243,8 @@ router.post('/', authenticate, async (req, res, next) => {
                     title: activity,
                     description: `上午活动：${activity}`,
                     location: location,
+                    cost: budgetEstimate,
+                    ai_generate_cost: true, // 标记为AI生成的费用
                     order_index: index,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
@@ -254,6 +257,7 @@ router.post('/', authenticate, async (req, res, next) => {
                 day.afternoon.forEach((item, index) => {
                   const activity = typeof item === 'object' ? item.activity : item
                   const location = typeof item === 'object' ? item.location : extractLocationFromActivity(activity)
+                  const budgetEstimate = typeof item === 'object' ? item.budget_estimate : 0
                   
                   dayItemsData.push({
                     trip_day_id: savedDay.id,
@@ -261,6 +265,8 @@ router.post('/', authenticate, async (req, res, next) => {
                     title: activity,
                     description: `下午活动：${activity}`,
                     location: location,
+                    cost: budgetEstimate,
+                    ai_generate_cost: true, // 标记为AI生成的费用
                     order_index: index + 10,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
@@ -273,6 +279,7 @@ router.post('/', authenticate, async (req, res, next) => {
                 day.evening.forEach((item, index) => {
                   const activity = typeof item === 'object' ? item.activity : item
                   const location = typeof item === 'object' ? item.location : extractLocationFromActivity(activity)
+                  const budgetEstimate = typeof item === 'object' ? item.budget_estimate : 0
                   
                   dayItemsData.push({
                     trip_day_id: savedDay.id,
@@ -280,6 +287,8 @@ router.post('/', authenticate, async (req, res, next) => {
                     title: activity,
                     description: `晚上活动：${activity}`,
                     location: location,
+                    cost: budgetEstimate,
+                    ai_generate_cost: true, // 标记为AI生成的费用
                     order_index: index + 20,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
@@ -408,6 +417,90 @@ function extractLocationFromActivity(activity) {
 /**
  * 更新行程
  */
+
+/**
+ * 更新行程项目预算
+ */
+router.put('/:tripId/day-items/:itemId/budget', authenticate, async (req, res, next) => {
+  try {
+    const { tripId, itemId } = req.params
+    const { budget } = req.body
+
+    // 验证预算金额
+    if (budget === undefined || budget === null || isNaN(parseFloat(budget))) {
+      throw new ValidationError('预算金额必须为有效数字')
+    }
+
+    // 检查行程是否存在且属于当前用户
+    const { data: existingTrip, error: tripError } = await supabase
+      .from('trips')
+      .select('id')
+      .eq('id', tripId)
+      .eq('user_id', req.user.id)
+      .single()
+
+    if (tripError) {
+      throw new NotFoundError('行程不存在')
+    }
+
+    // 检查行程项目是否存在
+    const { data: existingItem, error: itemError } = await supabase
+      .from('trip_day_items')
+      .select('id, trip_day_id')
+      .eq('id', itemId)
+      .single()
+
+    if (itemError) {
+      throw new NotFoundError('行程项目不存在')
+    }
+
+    // 验证行程项目属于该行程
+    const { data: tripDay, error: dayError } = await supabase
+      .from('trip_days')
+      .select('trip_id')
+      .eq('id', existingItem.trip_day_id)
+      .eq('trip_id', tripId)
+      .single()
+
+    if (dayError) {
+      throw new ValidationError('行程项目不属于该行程')
+    }
+
+    // 更新预算金额，并将ai_generate_cost设为false（用户手动修改）
+    const { data: updatedItem, error: updateError } = await supabase
+      .from('trip_day_items')
+      .update({
+        cost: parseFloat(budget),
+        ai_generate_cost: false, // 用户手动修改，标记为非AI生成
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', itemId)
+      .select()
+      .single()
+
+    if (updateError) {
+      throw new Error(`更新预算失败: ${updateError.message}`)
+    }
+
+    logger.info('更新行程项目预算', { 
+      tripId: tripId,
+      itemId: itemId,
+      userId: req.user.id,
+      newBudget: budget,
+      aiGenerateCost: false
+    })
+
+    res.json({
+      success: true,
+      message: '预算更新成功',
+      data: {
+        item: updatedItem
+      }
+    })
+  } catch (error) {
+    next(error)
+  }
+})
 
 /**
  * 更新行程
