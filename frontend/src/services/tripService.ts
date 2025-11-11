@@ -81,56 +81,58 @@ export class TripService {
    * 将数据库格式的行程数据转换为前端显示格式
    */
   static formatTripForDisplay(trip: Trip): any {
-    // 计算行程天数
-    const startDate = new Date(trip.start_date)
-    const endDate = new Date(trip.end_date)
-    const durationDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+      // 计算行程天数
+      const startDate = new Date(trip.start_date)
+      const endDate = new Date(trip.end_date)
+      const durationDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
-    // 转换行程天数数据
-    const formattedDays = trip.trip_days?.map(tripDay => {
-      // 按时间分组行程项目
-      const morningItems: Array<{activity: string, location?: string}> = []
-      const afternoonItems: Array<{activity: string, location?: string}> = []
-      const eveningItems: Array<{activity: string, location?: string}> = []
+      // 转换行程天数数据
+      const formattedDays = trip.trip_days?.map(tripDay => {
+        // 按时间分组行程项目
+        const morningItems: Array<{activity: string, location?: string, budget_estimate: number, ai_generated: boolean}> = []
+        const afternoonItems: Array<{activity: string, location?: string, budget_estimate: number, ai_generated: boolean}> = []
+        const eveningItems: Array<{activity: string, location?: string, budget_estimate: number, ai_generated: boolean}> = []
 
-      tripDay.trip_day_items?.forEach(item => {
-        // 创建活动对象，包含activity和location信息
-        const activityObj = {
-          activity: item.title,
-          location: item.location
-        }
-
-        // 优先根据description中的时间信息分类
-        if (item.description) {
-          const desc = item.description.toLowerCase()
-          if (desc.includes('上午') || desc.includes('早上') || desc.includes('早晨')) {
-            morningItems.push(activityObj)
-            return
-          } else if (desc.includes('下午')) {
-            afternoonItems.push(activityObj)
-            return
-          } else if (desc.includes('晚上') || desc.includes('傍晚') || desc.includes('夜间')) {
-            eveningItems.push(activityObj)
-            return
+        tripDay.trip_day_items?.forEach(item => {
+          // 创建活动对象，包含activity、location、budget_estimate和ai_generated信息
+          const activityObj = {
+            activity: item.title,
+            location: item.location,
+            budget_estimate: item.cost || 0,
+            ai_generated: item.ai_generate_cost || false // 添加AI生成标记
           }
-        }
-        
-        // 如果没有description中的时间信息，再根据start_time分类
-        const time = item.start_time
-        if (time) {
-          const hour = parseInt(time.split(':')[0])
-          if (hour >= 5 && hour < 12) {
-            morningItems.push(activityObj)
-          } else if (hour >= 12 && hour < 18) {
-            afternoonItems.push(activityObj)
+
+          // 优先根据description中的时间信息分类
+          if (item.description) {
+            const desc = item.description.toLowerCase()
+            if (desc.includes('上午') || desc.includes('早上') || desc.includes('早晨')) {
+              morningItems.push(activityObj)
+              return
+            } else if (desc.includes('下午')) {
+              afternoonItems.push(activityObj)
+              return
+            } else if (desc.includes('晚上') || desc.includes('傍晚') || desc.includes('夜间')) {
+              eveningItems.push(activityObj)
+              return
+            }
+          }
+          
+          // 如果没有description中的时间信息，再根据start_time分类
+          const time = item.start_time
+          if (time) {
+            const hour = parseInt(time.split(':')[0])
+            if (hour >= 5 && hour < 12) {
+              morningItems.push(activityObj)
+            } else if (hour >= 12 && hour < 18) {
+              afternoonItems.push(activityObj)
+            } else {
+              eveningItems.push(activityObj)
+            }
           } else {
-            eveningItems.push(activityObj)
+            // 如果都没有，默认放到上午
+            morningItems.push(activityObj)
           }
-        } else {
-          // 如果都没有，默认放到上午
-          morningItems.push(activityObj)
-        }
-      })
+        })
 
       return {
         day: tripDay.day_number,

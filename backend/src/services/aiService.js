@@ -106,9 +106,10 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
 
 重要要求: 
 1.对于每个活动，请同时提供活动地点（location）信息。
-2.每个时间段的活动数量不限定为两条, 可根据预计所需时间增减活动数量。
-3.需要确保午餐、晚餐被包含在活动中
-4.晚上最后一条活动必须是返回酒店，需要给出具体酒店名称
+2.对于每个活动，请提供预算估计（budget_estimate），以元为单位。
+3.每个时间段的活动数量不限定为两条, 可根据预计所需时间增减活动数量。
+4.需要确保午餐、晚餐被包含在活动中
+5.晚上最后一条活动必须是返回酒店，需要给出具体酒店名称
 
 请以JSON格式返回，结构如下：
 {
@@ -123,31 +124,37 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
       "morning": [
         {
           "activity": "上午活动1",
-          "location": "活动地点1"
+          "location": "活动地点1",
+          "budget_estimate": 预算金额
         },
         {
           "activity": "上午活动2", 
-          "location": "活动地点2"
+          "location": "活动地点2",
+          "budget_estimate": 预算金额
         }
       ],
       "afternoon": [
         {
           "activity": "下午活动1",
-          "location": "活动地点3"
+          "location": "活动地点3",
+          "budget_estimate": 预算金额
         },
         {
           "activity": "下午活动2",
-          "location": "活动地点4"
+          "location": "活动地点4",
+          "budget_estimate": 预算金额
         }
       ],
       "evening": [
         {
           "activity": "晚上活动1",
-          "location": "活动地点5"
+          "location": "活动地点5",
+          "budget_estimate": 预算金额
         },
         {
           "activity": "晚上活动2",
-          "location": "活动地点6"
+          "location": "活动地点6",
+          "budget_estimate": 预算金额
         }
       ],
       "notes": "注意事项"
@@ -190,11 +197,16 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
                   // 旧格式：字符串，自动提取location
                   return {
                     activity: item,
-                    location: this.extractLocationFromActivity(item)
+                    location: this.extractLocationFromActivity(item),
+                    budget_estimate: 0 // 默认预算为0
                   }
                 }
-                // 新格式：对象，直接返回
-                return item
+                // 新格式：对象，确保有budget_estimate字段
+                return {
+                  activity: item.activity || item,
+                  location: item.location || this.extractLocationFromActivity(item.activity || item),
+                  budget_estimate: item.budget_estimate || 0
+                }
               })
             }
             
@@ -205,11 +217,16 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
                   // 旧格式：字符串，自动提取location
                   return {
                     activity: item,
-                    location: this.extractLocationFromActivity(item)
+                    location: this.extractLocationFromActivity(item),
+                    budget_estimate: 0 // 默认预算为0
                   }
                 }
-                // 新格式：对象，直接返回
-                return item
+                // 新格式：对象，确保有budget_estimate字段
+                return {
+                  activity: item.activity || item,
+                  location: item.location || this.extractLocationFromActivity(item.activity || item),
+                  budget_estimate: item.budget_estimate || 0
+                }
               })
             }
             
@@ -220,11 +237,16 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
                   // 旧格式：字符串，自动提取location
                   return {
                     activity: item,
-                    location: this.extractLocationFromActivity(item)
+                    location: this.extractLocationFromActivity(item),
+                    budget_estimate: 0 // 默认预算为0
                   }
                 }
-                // 新格式：对象，直接返回
-                return item
+                // 新格式：对象，确保有budget_estimate字段
+                return {
+                  activity: item.activity || item,
+                  location: item.location || this.extractLocationFromActivity(item.activity || item),
+                  budget_estimate: item.budget_estimate || 0
+                }
               })
             }
             
@@ -315,27 +337,32 @@ ${budget ? `预算：${budget}元\n` : ''}${travelers_count ? `旅行人数：${
         morning: [
           {
             activity: `${params.destination}著名景点参观`,
-            location: `${params.destination}主要景区`
+            location: `${params.destination}主要景区`,
+            budget_estimate: 50 // 默认景点门票预算
           }
         ],
         afternoon: [
           {
             activity: '当地特色餐厅午餐',
-            location: `${params.destination}特色餐厅`
+            location: `${params.destination}特色餐厅`,
+            budget_estimate: 80 // 默认午餐预算
           },
           {
             activity: '文化体验活动',
-            location: `${params.destination}文化中心`
+            location: `${params.destination}文化中心`,
+            budget_estimate: 60 // 默认文化体验预算
           }
         ],
         evening: [
           {
             activity: '晚餐',
-            location: `${params.destination}餐厅`
+            location: `${params.destination}餐厅`,
+            budget_estimate: 100 // 默认晚餐预算
           },
           {
             activity: '夜景游览',
-            location: `${params.destination}夜景观赏点`
+            location: `${params.destination}夜景观赏点`,
+            budget_estimate: 30 // 默认夜景游览预算
           }
         ],
         notes: '根据您的偏好调整的具体安排',

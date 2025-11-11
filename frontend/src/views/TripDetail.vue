@@ -125,7 +125,7 @@
               
               <div class="divide-y divide-gray-200 dark:divide-gray-700">
                 <div 
-                  v-for="day in trip.days" 
+                  v-for="(day, dayIndex) in trip.days" 
                   :key="day.day"
                   class="p-6"
                 >
@@ -149,12 +149,25 @@
                         <li 
                           v-for="(activity, index) in day.morning" 
                           :key="index"
-                          class="flex items-center text-sm text-blue-700 dark:text-blue-300"
+                          class="flex items-center justify-between text-sm text-blue-700 dark:text-blue-300"
                         >
-                          <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                          </svg>
-                          {{ typeof activity === 'string' ? activity : activity.activity }}
+                          <div class="flex items-center">
+                            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            {{ typeof activity === 'string' ? activity : activity.activity }}
+                          </div>
+                          <span v-if="typeof activity === 'object' && activity.budget_estimate !== undefined" 
+                                :class="[
+                                  'text-xs px-2 py-1 rounded cursor-pointer transition-colors',
+                                  activity.ai_generated === true 
+                                    ? 'bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-700' 
+                                    : 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700'
+                                ]"
+                                @click="startEditBudget(dayIndex, 'morning', index, activity.budget_estimate)">
+                            ¥{{ activity.budget_estimate }}
+                            <span v-if="activity.ai_generated === false" class="text-xs ml-1">✓</span>
+                          </span>
                         </li>
                       </ul>
                     </div>
@@ -171,12 +184,25 @@
                         <li 
                           v-for="(activity, index) in day.afternoon" 
                           :key="index"
-                          class="flex items-center text-sm text-orange-700 dark:text-orange-300"
+                          class="flex items-center justify-between text-sm text-orange-700 dark:text-orange-300"
                         >
-                          <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                          </svg>
-                          {{ typeof activity === 'string' ? activity : activity.activity }}
+                          <div class="flex items-center">
+                            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            {{ typeof activity === 'string' ? activity : activity.activity }}
+                          </div>
+                          <span v-if="typeof activity === 'object' && activity.budget_estimate !== undefined" 
+                                :class="[
+                                  'text-xs px-2 py-1 rounded cursor-pointer transition-colors',
+                                  activity.ai_generated === true 
+                                    ? 'bg-orange-100 dark:bg-orange-800 text-orange-800 dark:text-orange-200 hover:bg-orange-200 dark:hover:bg-orange-700' 
+                                    : 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700'
+                                ]"
+                                @click="startEditBudget(dayIndex, 'afternoon', index, activity.budget_estimate)">
+                            ¥{{ activity.budget_estimate }}
+                            <span v-if="activity.ai_generated === false" class="text-xs ml-1">✓</span>
+                          </span>
                         </li>
                       </ul>
                     </div>
@@ -193,12 +219,25 @@
                         <li 
                           v-for="(activity, index) in day.evening" 
                           :key="index"
-                          class="flex items-center text-sm text-purple-700 dark:text-purple-300"
+                          class="flex items-center justify-between text-sm text-purple-700 dark:text-purple-300"
                         >
-                          <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                          </svg>
-                          {{ typeof activity === 'string' ? activity : activity.activity }}
+                          <div class="flex items-center">
+                            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            {{ typeof activity === 'string' ? activity : activity.activity }}
+                          </div>
+                          <span v-if="typeof activity === 'object' && activity.budget_estimate !== undefined" 
+                                :class="[
+                                  'text-xs px-2 py-1 rounded cursor-pointer transition-colors',
+                                  activity.ai_generated === true 
+                                    ? 'bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-200 hover:bg-purple-200 dark:hover:bg-purple-700' 
+                                    : 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700'
+                                ]"
+                                @click="startEditBudget(dayIndex, 'evening', index, activity.budget_estimate)">
+                            ¥{{ activity.budget_estimate }}
+                            <span v-if="activity.ai_generated === false" class="text-xs ml-1">✓</span>
+                          </span>
                         </li>
                       </ul>
                     </div>
@@ -225,7 +264,10 @@
                 <div class="space-y-2">
                   <div class="flex justify-between">
                     <span class="text-sm text-gray-600 dark:text-gray-400">总预算</span>
-                    <span class="font-medium text-gray-900 dark:text-white">¥{{ trip.budget }}</span>
+                    <span 
+                      class="font-medium text-gray-900 dark:text-white cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded"
+                      @click="editTotalBudget"
+                    >¥{{ trip.budget }}</span>
                   </div>
                   <div class="flex justify-between">
                     <span class="text-sm text-gray-600 dark:text-gray-400">已分配</span>
@@ -234,6 +276,20 @@
                   <div class="flex justify-between">
                     <span class="text-sm text-gray-600 dark:text-gray-400">剩余</span>
                     <span class="font-medium text-green-600 dark:text-green-400">¥{{ remainingBudget }}</span>
+                  </div>
+                </div>
+                
+                <!-- 预算说明 -->
+                <div class="budget-legend mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm">
+                  <div class="flex items-center space-x-4">
+                    <span class="flex items-center">
+                      <span class="w-3 h-3 bg-blue-100 dark:bg-blue-800 border border-blue-200 dark:border-blue-700 rounded mr-2"></span>
+                      AI生成预算
+                    </span>
+                    <span class="flex items-center">
+                      <span class="w-3 h-3 bg-green-100 dark:bg-green-800 border border-green-200 dark:border-green-700 rounded mr-2"></span>
+                      用户修改预算
+                    </span>
                   </div>
                 </div>
               </div>
@@ -302,16 +358,46 @@
       </div>
     </div>
   </div>
+
+  <!-- 预算编辑模态框 -->
+  <n-modal
+    v-model:show="isEditingBudget"
+    preset="dialog"
+    title="编辑预算"
+    positive-text="保存"
+    negative-text="取消"
+    @positive-click="saveEditBudget"
+    @negative-click="cancelEditBudget"
+  >
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          预算金额
+        </label>
+        <n-input
+          v-model:value="editingBudgetValue"
+          type="number"
+          placeholder="请输入预算金额"
+          @keyup.enter="saveEditBudget"
+        />
+      </div>
+      <div class="text-sm text-gray-500 dark:text-gray-400">
+        原预算金额：¥{{ editingBudget.originalValue }}
+      </div>
+    </div>
+  </n-modal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useMessage, NModal, NButton, NInput } from 'naive-ui'
 import NavigationBar from '@/components/NavigationBar.vue'
 import TripService, { type Trip } from '@/services/tripService'
 
 const router = useRouter()
 const route = useRoute()
+const message = useMessage()
 
 const trip = ref({
   id: '',
@@ -330,6 +416,23 @@ const trip = ref({
 
 const loading = ref(true)
 const error = ref('')
+
+// 预算编辑相关状态
+const editingBudget = ref({
+  dayIndex: -1,
+  timePeriod: '',
+  activityIndex: -1,
+  originalValue: 0
+})
+
+const editingBudgetValue = ref('')
+
+// 计算是否正在编辑预算
+const isEditingBudget = computed(() => {
+  return editingBudget.value.dayIndex >= 0 && 
+         editingBudget.value.timePeriod !== '' && 
+         editingBudget.value.activityIndex >= 0
+})
 
 const allocatedBudget = computed(() => {
   return trip.value.days.reduce((sum, day) => sum + day.budget, 0)
@@ -391,6 +494,137 @@ const shareTrip = () => {
   navigator.clipboard.writeText(shareUrl).then(() => {
     alert('行程链接已复制到剪贴板！')
   })
+}
+
+// 编辑总预算
+const editTotalBudget = () => {
+  const newBudget = prompt('请输入新的总预算金额：', trip.value.budget.toString())
+  if (newBudget && !isNaN(parseFloat(newBudget))) {
+    trip.value.budget = parseFloat(newBudget)
+    message.success('总预算更新成功')
+  }
+}
+
+// 开始编辑预算
+const startEditBudget = (dayIndex: number, timePeriod: string, activityIndex: number, currentValue: number) => {
+  editingBudget.value = {
+    dayIndex,
+    timePeriod,
+    activityIndex,
+    originalValue: currentValue
+  }
+  editingBudgetValue.value = currentValue.toString()
+}
+
+// 取消编辑预算
+const cancelEditBudget = () => {
+  editingBudget.value = {
+    dayIndex: -1,
+    timePeriod: '',
+    activityIndex: -1,
+    originalValue: 0
+  }
+  editingBudgetValue.value = ''
+}
+
+// 保存预算修改
+const saveEditBudget = async () => {
+  if (!editingBudgetValue.value || isNaN(parseFloat(editingBudgetValue.value))) {
+    message.error('请输入有效的预算金额')
+    return
+  }
+
+  const newValue = parseFloat(editingBudgetValue.value)
+  
+  try {
+    // 调用后端API更新预算
+    await updateBudget(
+      trip.value.id,
+      editingBudget.value.dayIndex,
+      editingBudget.value.timePeriod,
+      editingBudget.value.activityIndex,
+      newValue
+    )
+    
+    // 更新前端数据
+    const day = trip.value.days[editingBudget.value.dayIndex]
+    const activities = day[editingBudget.value.timePeriod as keyof typeof day] as Array<{activity: string, location?: string, budget_estimate: number, ai_generated: boolean}>
+    activities[editingBudget.value.activityIndex].budget_estimate = newValue
+    activities[editingBudget.value.activityIndex].ai_generated = false // 标记为用户修改
+    
+    // 重新计算当日预算
+    day.budget = day.morning.reduce((sum, item) => sum + item.budget_estimate, 0) +
+                 day.afternoon.reduce((sum, item) => sum + item.budget_estimate, 0) +
+                 day.evening.reduce((sum, item) => sum + item.budget_estimate, 0)
+    
+    message.success('预算更新成功')
+    cancelEditBudget()
+  } catch (error) {
+    console.error('更新预算失败:', error)
+    message.error('预算更新失败')
+  }
+}
+
+// 更新预算的API调用
+const updateBudget = async (tripId: string, dayIndex: number, timePeriod: string, activityIndex: number, newValue: number) => {
+  try {
+    // 获取对应的行程项目ID
+    const day = trip.value.days[dayIndex]
+    const activities = day[timePeriod as keyof typeof day] as Array<{activity: string, location?: string, budget_estimate: number}>
+    
+    // 在实际应用中，这里需要从后端获取行程项目的真实ID
+    // 由于当前数据结构中没有保存项目ID，我们需要先获取行程详情来找到对应的项目ID
+    const tripDetail = await TripService.getTripDetail(tripId)
+    
+    // 查找对应的行程项目ID
+    const tripDay = tripDetail.trip_days[dayIndex]
+    if (!tripDay) {
+      throw new Error('找不到对应的行程天数')
+    }
+    
+    // 根据时间周期和索引查找对应的项目
+    let targetItemId = null
+    let itemIndex = 0
+    
+    // 根据时间周期确定起始索引
+    if (timePeriod === 'morning') {
+      itemIndex = activityIndex
+    } else if (timePeriod === 'afternoon') {
+      itemIndex = (day.morning?.length || 0) + activityIndex
+    } else if (timePeriod === 'evening') {
+      itemIndex = (day.morning?.length || 0) + (day.afternoon?.length || 0) + activityIndex
+    }
+    
+    // 查找对应的行程项目
+    if (tripDay.trip_day_items && tripDay.trip_day_items.length > itemIndex) {
+      targetItemId = tripDay.trip_day_items[itemIndex].id
+    }
+    
+    if (!targetItemId) {
+      throw new Error('找不到对应的行程项目')
+    }
+    
+    // 调用后端API更新预算
+    const response = await fetch(`/api/trips/${tripId}/day-items/${targetItemId}/budget`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      },
+      body: JSON.stringify({ budget: newValue })
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || '更新预算失败')
+    }
+    
+    const result = await response.json()
+    return result
+  } catch (error) {
+    console.error('更新预算API调用失败:', error)
+    throw error
+  }
 }
 
 const exportTrip = () => {

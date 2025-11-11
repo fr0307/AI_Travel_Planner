@@ -59,12 +59,18 @@ export interface SavedTripPlan {
   saved_at: string
 }
 
+export interface Activity {
+  activity: string
+  location: string
+  budget_estimate: number
+}
+
 export interface TripDay {
   day: number
   date: string
-  morning: string[]
-  afternoon: string[]
-  evening: string[]
+  morning: Activity[]
+  afternoon: Activity[]
+  evening: Activity[]
   notes?: string
 }
 

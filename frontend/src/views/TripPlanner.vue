@@ -259,14 +259,21 @@ const form = reactive({
   interests: [] as string[],
 })
 
-// 格式化活动显示，兼容新旧数据结构
+// 格式化活动显示，兼容新旧数据结构，支持预算显示
 const formatActivities = (activities: any[]): string => {
   if (!activities || activities.length === 0) return '暂无安排'
   
   return activities.map(activity => {
-    // 如果是对象格式（新格式），显示activity和location
+    // 如果是对象格式（新格式），显示activity、location和budget_estimate
     if (typeof activity === 'object' && activity !== null) {
-      return activity.location ? `${activity.activity}（${activity.location}）` : activity.activity
+      let displayText = activity.activity
+      if (activity.location) {
+        displayText += `（${activity.location}）`
+      }
+      if (activity.budget_estimate && activity.budget_estimate > 0) {
+        displayText += ` ¥${activity.budget_estimate}`
+      }
+      return displayText
     }
     // 如果是字符串格式（旧格式），直接显示
     return activity

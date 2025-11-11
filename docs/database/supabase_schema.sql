@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS trip_day_items (
     end_time TIME,
     duration_minutes INTEGER,
     cost DECIMAL(10,2),
+    ai_generate_cost BOOLEAN DEFAULT TRUE,
     notes TEXT,
     order_index INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
