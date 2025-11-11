@@ -89,22 +89,28 @@ export class TripService {
     // 转换行程天数数据
     const formattedDays = trip.trip_days?.map(tripDay => {
       // 按时间分组行程项目
-      const morningItems: string[] = []
-      const afternoonItems: string[] = []
-      const eveningItems: string[] = []
+      const morningItems: Array<{activity: string, location?: string}> = []
+      const afternoonItems: Array<{activity: string, location?: string}> = []
+      const eveningItems: Array<{activity: string, location?: string}> = []
 
       tripDay.trip_day_items?.forEach(item => {
+        // 创建活动对象，包含activity和location信息
+        const activityObj = {
+          activity: item.title,
+          location: item.location
+        }
+
         // 优先根据description中的时间信息分类
         if (item.description) {
           const desc = item.description.toLowerCase()
           if (desc.includes('上午') || desc.includes('早上') || desc.includes('早晨')) {
-            morningItems.push(item.title)
+            morningItems.push(activityObj)
             return
           } else if (desc.includes('下午')) {
-            afternoonItems.push(item.title)
+            afternoonItems.push(activityObj)
             return
           } else if (desc.includes('晚上') || desc.includes('傍晚') || desc.includes('夜间')) {
-            eveningItems.push(item.title)
+            eveningItems.push(activityObj)
             return
           }
         }
@@ -114,15 +120,15 @@ export class TripService {
         if (time) {
           const hour = parseInt(time.split(':')[0])
           if (hour >= 5 && hour < 12) {
-            morningItems.push(item.title)
+            morningItems.push(activityObj)
           } else if (hour >= 12 && hour < 18) {
-            afternoonItems.push(item.title)
+            afternoonItems.push(activityObj)
           } else {
-            eveningItems.push(item.title)
+            eveningItems.push(activityObj)
           }
         } else {
           // 如果都没有，默认放到上午
-          morningItems.push(item.title)
+          morningItems.push(activityObj)
         }
       })
 

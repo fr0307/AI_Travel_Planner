@@ -12,6 +12,7 @@ dotenv.config()
 import authRoutes from './routes/auth.js'
 import tripRoutes from './routes/trips.js'
 import aiRoutes from './routes/ai.js'
+import mapRoutes from './routes/map.js'
 
 // 导入中间件
 import { errorHandler } from './middleware/errorHandler.js'
@@ -60,6 +61,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes)
 app.use('/api/trips', tripRoutes)
 app.use('/api/ai', aiRoutes)
+app.use('/api/map', mapRoutes)
 
 // 404处理
 app.use('*', (req, res) => {

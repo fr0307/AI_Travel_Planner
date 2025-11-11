@@ -154,7 +154,7 @@
                           <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                           </svg>
-                          {{ activity }}
+                          {{ typeof activity === 'string' ? activity : activity.activity }}
                         </li>
                       </ul>
                     </div>
@@ -176,7 +176,7 @@
                           <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                           </svg>
-                          {{ activity }}
+                          {{ typeof activity === 'string' ? activity : activity.activity }}
                         </li>
                       </ul>
                     </div>
@@ -198,7 +198,7 @@
                           <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                           </svg>
-                          {{ activity }}
+                          {{ typeof activity === 'string' ? activity : activity.activity }}
                         </li>
                       </ul>
                     </div>
@@ -267,6 +267,15 @@
               <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
                 <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-3">操作</h3>
                 <div class="space-y-2">
+                  <button 
+                    @click="viewMap"
+                    class="w-full flex items-center justify-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors"
+                  >
+                    <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
+                    查看地图
+                  </button>
                   <button 
                     @click="exportTrip"
                     class="w-full flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
@@ -390,5 +399,9 @@ const exportTrip = () => {
 
 const printTrip = () => {
   window.print()
+}
+
+const viewMap = () => {
+  router.push(`/trip/${trip.value.id}/map`)
 }
 </script>
