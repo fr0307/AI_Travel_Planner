@@ -389,7 +389,7 @@ const loadAMapScript = async () => {
       if (result.success && result.data.isConfigured) {
         const apiKey = result.data.apiKey
         const script = document.createElement('script')
-        script.src = `https://webapi.amap.com/maps?v=2.0&key=${apiKey}&plugin=AMap.Geocoder,AMap.Polyline`
+        script.src = `https://webapi.amap.com/maps?v=2.0&key=${apiKey}&plugin=AMap.Geocoder,AMap.Polyline,AMap.InfoWindow`
         script.onload = () => resolve(true)
         script.onerror = () => reject(new Error('高德地图API加载失败'))
         document.head.appendChild(script)
@@ -416,23 +416,41 @@ const updateMap = async () => {
   // 获取所有地点的坐标
   const coordinates: [number, number][] = []
   
-  for (const location of currentDayLocations.value) {
+  for (let i = 0; i < currentDayLocations.value.length; i++) {
+    const location = currentDayLocations.value[i]
     const coords = await getCoordinates(
-      `${trip.value?.destination ?? ''} ${location.name ?? ''}`
+      `${trip.value?.destination ?? ''} ${location.name ? (location.name.split('→').length > 1 ? location.name.split('→')[1].trim() : location.name) : ''}`
     );
     if (coords) {
       coordinates.push(coords)
       
-      // 添加标记
+      // 添加带序号的标记
       const marker = new (window as any).AMap.Marker({
         position: coords,
         title: location.name,
         content: `
-          <div class="bg-white p-2 rounded shadow-md">
-            <div class="font-bold text-sm">${location.name}</div>
-            <div class="text-xs text-gray-600">${location.timePeriod}</div>
+          <div class="bg-white p-2 rounded-full shadow-md border-2 border-blue-500">
+            <div class="font-bold text-sm text-center">${i + 1}</div>
           </div>
-        `
+        `,
+        offset: new (window as any).AMap.Pixel(-12, -12)
+      })
+      
+      // 添加信息窗口显示详细信息
+      const infoWindow = new (window as any).AMap.InfoWindow({
+        content: `
+          <div class="bg-white p-3 rounded shadow-md max-w-xs">
+            <div class="font-bold text-sm mb-1">${i + 1}. ${location.name}</div>
+            <div class="text-xs text-gray-600 mb-1">${location.timePeriod}</div>
+            <div class="text-xs text-blue-500">点击路线查看行程顺序</div>
+          </div>
+        `,
+        offset: new (window as any).AMap.Pixel(0, -30)
+      })
+      
+      // 点击标记显示详细信息
+      marker.on('click', () => {
+        infoWindow.open(map, coords)
       })
       
       map.add(marker)
@@ -440,13 +458,23 @@ const updateMap = async () => {
     }
   }
   
-  // 如果有多个坐标点，绘制路线
+  // 如果有多个坐标点，绘制带方向的路线
   if (coordinates.length > 1) {
     polyline = new (window as any).AMap.Polyline({
       path: coordinates,
       strokeColor: '#1890ff',
       strokeWeight: 6,
-      strokeOpacity: 0.8
+      strokeOpacity: 0.8,
+      // 设置线条样式
+      strokeStyle: 'solid',
+      lineJoin: 'round',
+      lineCap: 'round',
+      // 添加方向箭头
+      showDir: true,
+      // 设置边框效果
+      borderWeight: 2,
+      isOutline: true,
+      outlineColor: '#ffffff'
     })
     
     map.add(polyline)
@@ -470,10 +498,41 @@ const clearMap = () => {
   }
 }
 
-const focusOnLocation = (location: any) => {
-  if (location.coordinates && map) {
-    map.setCenter(location.coordinates)
-    map.setZoom(15)
+const focusOnLocation = async (location: any) => {
+  if (!map) return
+  
+  try {
+    // 获取地点的坐标
+    const coords = await getCoordinates(
+      `${trip.value?.destination ?? ''} ${location.name ? (location.name.split('→').length > 1 ? location.name.split('→')[1].trim() : location.name) : ''}`
+    )
+    
+    if (coords) {
+      // 将地图中心移动到该地点
+      map.setCenter(coords)
+      map.setZoom(15)
+      
+      // 添加一个高亮标记来突出显示选中的地点
+      const highlightMarker = new (window as any).AMap.Marker({
+        position: coords,
+        title: location.name,
+        content: `
+          <div class="bg-red-500 p-3 rounded-full shadow-lg border-4 border-white animate-pulse">
+            <div class="font-bold text-sm text-white text-center">📍</div>
+          </div>
+        `,
+        offset: new (window as any).AMap.Pixel(-15, -15)
+      })
+      
+      map.add(highlightMarker)
+      
+      // 3秒后移除高亮标记
+      setTimeout(() => {
+        map.remove(highlightMarker)
+      }, 3000)
+    }
+  } catch (error) {
+    console.error('聚焦地点失败:', error)
   }
 }
 
