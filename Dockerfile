@@ -18,7 +18,7 @@ COPY frontend/ .
 
 # 构建前端应用（使用默认环境变量）
 ARG VITE_APP_TITLE="AI旅行规划器"
-ARG VITE_API_BASE_URL="/api"
+ARG VITE_API_BASE_URL="http://localhost:3001/api"
 ARG VITE_AMAP_API_KEY="dummy_amap_key"
 
 RUN npm run build
@@ -91,8 +91,8 @@ ENV AI_TRAVELER_OPENAI_API_KEY=your_openai_api_key
 ENV OPENAI_BASE_URL=https://api.openai.com/v1
 ENV OPENAI_MODEL=gpt-3.5-turbo
 
-# 暴露端口（后端服务监听3001端口）
-EXPOSE 3001
+# 暴露端口（前端服务监听3000端口）
+EXPOSE 3000
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
