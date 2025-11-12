@@ -82,28 +82,15 @@ echo "⏳ 等待后端服务启动..."
 sleep 10
 
 # 检查后端服务状态
-if curl -f http://localhost:3001/api/health > /dev/null 2>&1; then
+if curl -f http://localhost:3001/health > /dev/null 2>&1; then
     echo "✅ 后端API服务启动成功"
 else
     echo "❌ 后端API服务启动失败"
     exit 1
 fi
 
-# 启动Nginx作为统一入口
-echo "🌐 启动Nginx代理服务器..."
-nginx -c /app/docker/nginx.conf &
-NGINX_PID=$!
-
-# 等待Nginx启动
-sleep 5
-
-# 检查Nginx服务状态
-if curl -f http://localhost > /dev/null 2>&1; then
-    echo "✅ Nginx服务启动成功"
-else
-    echo "❌ Nginx服务启动失败"
-    exit 1
-fi
+# 直接使用后端服务（不通过Nginx代理）
+echo "🌐 后端服务直接监听端口 3001..."
 
 echo ""
 echo "🎉 AI旅行规划器启动完成！"

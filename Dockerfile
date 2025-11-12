@@ -91,12 +91,12 @@ ENV AI_TRAVELER_OPENAI_API_KEY=your_openai_api_key
 ENV OPENAI_BASE_URL=https://api.openai.com/v1
 ENV OPENAI_MODEL=gpt-3.5-turbo
 
-# 暴露端口
+# 暴露端口（后端服务监听3001端口）
 EXPOSE 3001
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3001/api/health || exit 1
+    CMD curl -f http://localhost:3001/health || exit 1
 
 # 启动应用
 CMD ["/app/start.sh"]
