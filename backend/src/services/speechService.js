@@ -239,7 +239,7 @@ class SpeechService {
   async processAudioData(audioData) {
     try {
       logger.info('处理音频数据，类型:', typeof audioData, '长度:', audioData.length)
-      this.saveAsWav(audioData, `debug_${Date.now()}.wav`)
+      // this.saveAsWav(audioData, `debug_${Date.now()}.wav`)
       
       // 前端发送的是Int16Array，直接使用
       const audioBuffer = Buffer.from(audioData.buffer)
