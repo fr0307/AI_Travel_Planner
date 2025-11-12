@@ -31,8 +31,8 @@ WORKDIR /app/backend
 # 复制后端package文件
 COPY backend/package*.json ./
 
-# 安装后端依赖
-RUN npm ci --only=production
+# 安装后端依赖（包括开发依赖用于构建）
+RUN npm ci
 
 # 复制后端源代码
 COPY backend/ .
