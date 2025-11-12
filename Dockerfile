@@ -1,6 +1,6 @@
 # AI旅行规划器 - 统一多阶段构建Dockerfile
 # 构建命令: docker build -t ai-travel-planner .
-# 运行命令: docker run -d -p 80:80 -e SUPABASE_URL=your_url -e SUPABASE_SERVICE_ROLE_KEY=your_key ai-travel-planner
+# 运行命令: docker run -d -p 80:80 ai-travel-planner
 
 # 阶段1: 前端构建
 FROM node:18-alpine AS frontend-build
@@ -40,6 +40,9 @@ COPY backend/ .
 # 构建后端应用
 RUN npm run build
 
+# 复制后端.env文件到镜像中
+COPY backend/.env ./
+
 # 阶段3: 运行时
 FROM node:18-alpine AS runtime
 
@@ -65,6 +68,9 @@ RUN npm ci --only=production
 WORKDIR /app
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
+# 复制前端.env文件到镜像中
+COPY frontend/.env ./frontend/
+
 # 复制数据库初始化脚本
 COPY docker/supabase_init.sql /app/database/supabase_init.sql
 
@@ -72,13 +78,11 @@ COPY docker/supabase_init.sql /app/database/supabase_init.sql
 COPY docker/start.sh ./start.sh
 RUN chmod +x ./start.sh
 
-# 设置环境变量默认值
+# 设置基本环境变量
 ENV NODE_ENV=production
 ENV PORT=3001
-ENV FRONTEND_URL=http://localhost:3000
-ENV SUPABASE_URL=your_supabase_project_url
-ENV SUPABASE_ANON_KEY=your_supabase_anon_key
-ENV SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# API密钥相关环境变量（可在运行时通过-e注入）
 ENV IFLYTEK_APP_ID=your_iflytek_app_id
 ENV IFLYTEK_API_KEY=your_iflytek_api_key
 ENV IFLYTEK_API_SECRET=your_iflytek_api_secret
@@ -86,9 +90,6 @@ ENV AMAP_API_KEY=your_amap_api_key
 ENV AI_TRAVELER_OPENAI_API_KEY=your_openai_api_key
 ENV OPENAI_BASE_URL=https://api.openai.com/v1
 ENV OPENAI_MODEL=gpt-3.5-turbo
-ENV JWT_SECRET=your_jwt_secret_key_here
-ENV JWT_EXPIRES_IN=7d
-ENV LOG_LEVEL=info
 
 # 暴露端口
 EXPOSE 3001
