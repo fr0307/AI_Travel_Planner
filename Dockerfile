@@ -43,6 +43,9 @@ RUN npm run build
 # 阶段3: 运行时
 FROM node:18-alpine AS runtime
 
+# 配置国内Alpine镜像源（腾讯云）
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.cloud.tencent.com/g' /etc/apk/repositories
+
 # 安装必要的工具
 RUN apk add --no-cache \
     postgresql-client \
@@ -51,9 +54,8 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
-# 复制后端构建结果
-COPY --from=backend-build /app/backend/dist ./backend/dist
-COPY --from=backend-build /app/backend/package*.json ./backend/
+# 复制后端源代码和依赖文件
+COPY --from=backend-build /app/backend ./backend/
 
 # 安装后端生产依赖
 WORKDIR /app/backend

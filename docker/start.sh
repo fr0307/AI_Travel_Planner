@@ -54,8 +54,20 @@ EOL
 # 数据库初始化检查
 echo "🗄️  检查数据库初始化..."
 
-# 提取数据库连接信息
-DB_URL=$(echo "$SUPABASE_URL" | sed 's|postgres://||')
+# 提取数据库连接信息（从Supabase HTTPS URL转换为PostgreSQL连接字符串）
+# Supabase URL格式: https://project-ref.supabase.co
+# 需要转换为: postgres://postgres.project-ref.supabase.co:5432/postgres
+if [[ "$SUPABASE_URL" == https://* ]]; then
+    # 从HTTPS URL提取项目引用
+    PROJECT_REF=$(echo "$SUPABASE_URL" | sed 's|https://||' | sed 's|\.supabase\.co||')
+    DB_URL="postgres://postgres.${PROJECT_REF}.supabase.co:5432/postgres"
+else
+    # 如果已经是PostgreSQL格式，直接使用
+    DB_URL="$SUPABASE_URL"
+fi
+
+# 解析PostgreSQL连接字符串
+DB_URL=$(echo "$DB_URL" | sed 's|postgres://||')
 DB_USER=$(echo "$DB_URL" | cut -d':' -f1)
 DB_PASS=$(echo "$DB_URL" | cut -d'@' -f1 | cut -d':' -f2)
 DB_HOST=$(echo "$DB_URL" | cut -d'@' -f2 | cut -d':' -f1)
