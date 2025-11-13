@@ -550,58 +550,24 @@ const saveEditBudget = async () => {
 // 更新预算的API调用
 const updateBudget = async (tripId: string, dayIndex: number, timePeriod: string, activityIndex: number, newValue: number) => {
   try {
-    // 获取对应的行程项目ID
-    const day = trip.value.days[dayIndex]
-    const activities = day[timePeriod as keyof typeof day] as Array<{activity: string, location?: string, budget_estimate: number}>
+    console.log('更新预算参数:', { tripId, dayIndex, timePeriod, activityIndex, newValue })
     
-    // 在实际应用中，这里需要从后端获取行程项目的真实ID
-    // 由于当前数据结构中没有保存项目ID，我们需要先获取行程详情来找到对应的项目ID
+    // 先获取完整的行程详情数据
     const tripDetail = await TripService.getTripDetail(tripId)
+    console.log('获取到的行程详情:', tripDetail)
     
-    // 查找对应的行程项目ID
-    const tripDay = tripDetail.trip_days[dayIndex]
-    if (!tripDay) {
-      throw new Error('找不到对应的行程天数')
-    }
+    // 使用TripService查找对应的行程项目ID
+    const dayItemId = TripService.findDayItemId(tripDetail, dayIndex, timePeriod, activityIndex)
     
-    // 根据时间周期和索引查找对应的项目
-    let targetItemId = null
-    let itemIndex = 0
-    
-    // 根据时间周期确定起始索引
-    if (timePeriod === 'morning') {
-      itemIndex = activityIndex
-    } else if (timePeriod === 'afternoon') {
-      itemIndex = (day.morning?.length || 0) + activityIndex
-    } else if (timePeriod === 'evening') {
-      itemIndex = (day.morning?.length || 0) + (day.afternoon?.length || 0) + activityIndex
-    }
-    
-    // 查找对应的行程项目
-    if (tripDay.trip_day_items && tripDay.trip_day_items.length > itemIndex) {
-      targetItemId = tripDay.trip_day_items[itemIndex].id
-    }
-    
-    if (!targetItemId) {
+    if (!dayItemId) {
       throw new Error('找不到对应的行程项目')
     }
     
-    // 调用后端API更新预算
-    const response = await fetch(`/api/trips/${tripId}/day-items/${targetItemId}/budget`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-      },
-      body: JSON.stringify({ budget: newValue })
-    })
+    console.log('找到的项目ID:', dayItemId)
     
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || '更新预算失败')
-    }
-    
-    const result = await response.json()
+    // 使用TripService更新预算
+    const result = await TripService.updateBudget(tripId, dayItemId, newValue)
+    console.log('预算更新API调用成功')
     return result
   } catch (error) {
     console.error('更新预算API调用失败:', error)

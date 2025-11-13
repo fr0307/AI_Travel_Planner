@@ -57,6 +57,19 @@ export interface TripResponse {
   }
 }
 
+// 预算更新接口
+export interface UpdateBudgetRequest {
+  budget: number
+}
+
+export interface UpdateBudgetResponse {
+  success: boolean
+  data: {
+    message: string
+    updatedItem: TripDayItem
+  }
+}
+
 // 行程服务类
 export class TripService {
   /**
@@ -159,6 +172,136 @@ export class TripService {
       description: trip.preferences?.description || `从${trip.departure || '未知'}到${trip.destination}的${durationDays}天旅行`,
       days: formattedDays
     }
+  }
+
+  /**
+   * 更新行程项目预算
+   */
+  static async updateBudget(tripId: string, dayItemId: string, budget: number): Promise<void> {
+    try {
+      const response = await apiClient.put<UpdateBudgetResponse>(
+        `/trips/${tripId}/day-items/${dayItemId}/budget`,
+        { budget }
+      )
+      
+      if (!response.data.success) {
+        throw new Error('更新预算失败')
+      }
+    } catch (error) {
+      console.error('更新预算失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 根据时间周期和索引查找对应的行程项目ID
+   * 此方法需要与formatTripForDisplay的分组逻辑完全一致
+   */
+  static findDayItemId(
+    trip: Trip,
+    dayIndex: number,
+    timePeriod: string,
+    activityIndex: number
+  ): string | null {
+    const tripDay = trip.trip_days?.[dayIndex]
+    if (!tripDay || !tripDay.trip_day_items) {
+      console.warn('找不到对应的行程天数或行程项目为空')
+      return null
+    }
+
+    console.log('查找项目ID参数:', { dayIndex, timePeriod, activityIndex })
+    console.log('行程项目数量:', tripDay.trip_day_items.length)
+    console.log('所有项目详情:', tripDay.trip_day_items.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      start_time: item.start_time
+    })))
+    
+    // 模拟formatTripForDisplay的分组逻辑，但保持原始顺序
+    // 首先为每个项目分配时间组，同时记录原始索引
+    const timeGroupAssignments: Array<{item: TripDayItem, group: string, originalIndex: number}> = []
+    
+    tripDay.trip_day_items.forEach((item, originalIndex) => {
+      let group = 'morning' // 默认分组
+      
+      // 优先根据description中的时间信息分类
+      if (item.description) {
+        const desc = item.description.toLowerCase()
+        if (desc.includes('上午') || desc.includes('早上') || desc.includes('早晨')) {
+          group = 'morning'
+        } else if (desc.includes('下午')) {
+          group = 'afternoon'
+        } else if (desc.includes('晚上') || desc.includes('傍晚') || desc.includes('夜间')) {
+          group = 'evening'
+        }
+      }
+      
+      // 如果没有description中的时间信息，再根据start_time分类
+      if (group === 'morning') { // 如果还没有确定分组
+        const time = item.start_time
+        if (time) {
+          const hour = parseInt(time.split(':')[0])
+          if (hour >= 5 && hour < 12) {
+            group = 'morning'
+          } else if (hour >= 12 && hour < 18) {
+            group = 'afternoon'
+          } else {
+            group = 'evening'
+          }
+        }
+      }
+      
+      timeGroupAssignments.push({item, group, originalIndex})
+    })
+    
+    // 按原始索引排序，确保顺序一致
+    timeGroupAssignments.sort((a, b) => a.originalIndex - b.originalIndex)
+    
+    // 按分组重新构建数组，保持原始顺序
+    const morningItems: TripDayItem[] = []
+    const afternoonItems: TripDayItem[] = []
+    const eveningItems: TripDayItem[] = []
+    
+    timeGroupAssignments.forEach(assignment => {
+      if (assignment.group === 'morning') {
+        morningItems.push(assignment.item)
+      } else if (assignment.group === 'afternoon') {
+        afternoonItems.push(assignment.item)
+      } else if (assignment.group === 'evening') {
+        eveningItems.push(assignment.item)
+      }
+    })
+
+    // 根据时间周期选择对应的项目数组
+    let targetItems: TripDayItem[] = []
+    if (timePeriod === 'morning') {
+      targetItems = morningItems
+    } else if (timePeriod === 'afternoon') {
+      targetItems = afternoonItems
+    } else if (timePeriod === 'evening') {
+      targetItems = eveningItems
+    }
+
+    console.log(`前端分组后的${timePeriod}项目数量:`, targetItems.length)
+    console.log(`前端分组后的${timePeriod}项目详情:`, targetItems.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      start_time: item.start_time
+    })))
+    
+    // 检查索引是否有效
+    if (activityIndex >= 0 && activityIndex < targetItems.length) {
+      const itemId = targetItems[activityIndex].id
+      console.log('找到项目ID:', itemId)
+      return itemId
+    }
+
+    console.warn('索引超出范围，无法找到对应的项目ID')
+    console.warn('有效索引范围: 0 -', targetItems.length - 1)
+    console.warn('当前索引:', activityIndex)
+    return null
   }
 }
 

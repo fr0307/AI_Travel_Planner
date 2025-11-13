@@ -207,6 +207,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import NavigationBar from '@/components/NavigationBar.vue'
 import TripService, { type Trip } from '@/services/tripService'
+import MapService from '@/services/map'
 
 const router = useRouter()
 const route = useRoute()
@@ -376,15 +377,8 @@ const loadAMapScript = async () => {
     }
     
     try {
-      // 从后端API获取高德地图配置
-      const response = await fetch('/api/map/config', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      const result = await response.json()
+      // 使用MapService获取高德地图配置
+      const result = await MapService.getMapConfig()
       
       if (result.success && result.data.isConfigured) {
         const apiKey = result.data.apiKey
@@ -558,19 +552,8 @@ const formatActivity = (activity: any): string => {
 
 const getCoordinates = async (locationName: string): Promise<[number, number] | null> => {
   try {
-    // 调用后端地理编码API
-    const response = await fetch('/api/map/geocode', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        address: locationName
-      })
-    })
-    
-    const result = await response.json()
+    // 使用MapService调用地理编码API
+    const result = await MapService.geocodeAddress(locationName)
     
     if (result.success && result.data.coordinates) {
       return result.data.coordinates
