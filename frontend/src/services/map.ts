@@ -32,7 +32,7 @@ export class MapService {
   /**
    * 获取地图配置信息
    */
-  static async getMapConfig(): Promise<MapConfig> {
+  static async getMapConfig(): Promise<MapConfigResponse> {
     try {
       const response = await apiClient.get<MapConfigResponse>('/map/config')
       
@@ -40,7 +40,7 @@ export class MapService {
         throw new Error('获取地图配置失败')
       }
       
-      return response.data.data
+      return response.data
     } catch (error) {
       console.error('获取地图配置失败:', error)
       throw error
@@ -60,7 +60,18 @@ export class MapService {
         throw new Error('地理编码失败')
       }
       
-      return response.data.data
+      // 后端返回的数据格式是 { coordinates: [lng, lat], formattedAddress: string }
+      // 需要转换为前端期望的格式 { lat: number, lng: number, formattedAddress: string }
+      const backendData = response.data.data
+      if (backendData.coordinates && Array.isArray(backendData.coordinates) && backendData.coordinates.length === 2) {
+        return {
+          lng: backendData.coordinates[0],
+          lat: backendData.coordinates[1],
+          formattedAddress: backendData.formattedAddress || address
+        }
+      } else {
+        throw new Error('地理编码返回的数据格式不正确')
+      }
     } catch (error) {
       console.error('地理编码失败:', error)
       throw error

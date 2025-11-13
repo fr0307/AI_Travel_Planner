@@ -358,12 +358,35 @@ const initMap = async () => {
     throw new Error('Map container div not exist')
   }
   
+  // 确保AMap对象已完全加载
+  if (!(window as any).AMap) {
+    console.warn('AMap对象未加载，等待加载完成...')
+    // 等待AMap对象加载完成
+    await new Promise((resolve) => {
+      const checkAMap = () => {
+        if ((window as any).AMap) {
+          console.log('AMap对象加载完成')
+          resolve(true)
+        } else {
+          setTimeout(checkAMap, 100)
+        }
+      }
+      checkAMap()
+    })
+  }
+  
   // 初始化地图
-  map = new (window as any).AMap.Map('map-container', {
-    zoom: 13,
-    center: [116.397428, 39.90923], // 默认北京中心
-    viewMode: '3D'
-  })
+  try {
+    map = new (window as any).AMap.Map('map-container', {
+      zoom: 13,
+      center: [116.397428, 39.90923], // 默认北京中心
+      viewMode: '3D'
+    })
+    console.log('高德地图初始化成功')
+  } catch (error) {
+    console.error('高德地图初始化失败:', error)
+    throw new Error('地图初始化失败: ' + error.message)
+  }
   
   // 初始更新地图
   updateMap()
@@ -372,24 +395,58 @@ const initMap = async () => {
 const loadAMapScript = async () => {
   return new Promise(async (resolve, reject) => {
     if ((window as any).AMap) {
+      console.log('AMap对象已存在，跳过加载')
       resolve(true)
       return
     }
     
     try {
       // 使用MapService获取高德地图配置
+      console.log('开始获取地图配置...')
       const result = await MapService.getMapConfig()
+      console.log('地图配置获取结果:', result)
       
       if (result.success && result.data.isConfigured) {
         const apiKey = result.data.apiKey
+        console.log('API Key已配置，开始加载高德地图API，Key:', apiKey ? `${apiKey.substring(0, 8)}...` : 'null')
+        
         const script = document.createElement('script')
         script.src = `https://webapi.amap.com/maps?v=2.0&key=${apiKey}&plugin=AMap.Geocoder,AMap.Polyline,AMap.InfoWindow`
-        script.onload = () => resolve(true)
-        script.onerror = () => reject(new Error('高德地图API加载失败'))
+        
+        // 添加更健壮的加载处理
+        script.onload = () => {
+          console.log('高德地图脚本加载完成，检查AMap对象...')
+          // 确保AMap对象已完全加载
+          if ((window as any).AMap) {
+            console.log('高德地图API加载成功，AMap对象已定义')
+            resolve(true)
+          } else {
+            console.log('AMap对象未定义，开始延迟检查...')
+            // 如果AMap对象仍未定义，等待一段时间再检查
+            const checkAMap = () => {
+              if ((window as any).AMap) {
+                console.log('高德地图API加载成功（延迟检查）')
+                resolve(true)
+              } else {
+                console.log('AMap对象仍未定义，继续等待...')
+                setTimeout(checkAMap, 100)
+              }
+            }
+            setTimeout(checkAMap, 100)
+          }
+        }
+        
+        script.onerror = () => {
+          console.error('高德地图API加载失败，使用模拟地图功能')
+          // 降级方案：使用模拟地图功能
+          setTimeout(() => resolve(true), 100)
+        }
+        
+        console.log('添加高德地图脚本到页面')
         document.head.appendChild(script)
       } else {
         // 如果后端没有配置API Key，使用模拟地图功能
-        console.warn('高德地图API Key未配置，使用模拟地图功能')
+        console.warn('高德地图API Key未配置，使用模拟地图功能', result)
         // 模拟加载成功，但地图功能会受限
         setTimeout(() => resolve(true), 100)
       }
@@ -553,13 +610,15 @@ const formatActivity = (activity: any): string => {
 const getCoordinates = async (locationName: string): Promise<[number, number] | null> => {
   try {
     // 使用MapService调用地理编码API
-    const result = await MapService.geocodeAddress(locationName)
+    const result = await MapService.geocode(locationName)
     
-    if (result.success && result.data.coordinates) {
-      return result.data.coordinates
+    // MapService.geocode返回的是{ lat: number; lng: number; formattedAddress: string }
+    if (result && result.lng && result.lat) {
+      console.log('获取到坐标:', result.lng, result.lat, 'for location:', locationName)
+      return [result.lng, result.lat] // 高德地图使用[lng, lat]格式
     } else {
       // 如果API调用失败，使用模拟数据作为降级方案
-      console.warn('地理编码API调用失败，使用模拟坐标:', result.message)
+      console.warn('地理编码API调用失败或返回无效坐标，使用模拟坐标')
       
       // 模拟一些常见地点的坐标
       const mockCoordinates: { [key: string]: [number, number] } = {
