@@ -1,6 +1,6 @@
 运行方式: 使用docker pull从阿里云镜像下载链接后，用docker pull命令运行即可，之后访问http://localhost:3000可看到前端网页
 
-ps: 数据库中有用户guest@example.com，密码为123456，包含一些示例行程数据可供参考
+ps: 数据库中有用户guest@example.com，密码为123456，包含一些示例行程数据可供参考  
 
 docker 镜像下载命令:
 ```
